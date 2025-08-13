@@ -1,0 +1,101 @@
+spring:
+  application:
+    name: fuel-tracker-backend
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fuel_tracker
+    username: ${DB_USERNAME:fuel_user}
+    password: ${DB_PASSWORD:fuel_password}
+    "driver-class-name": org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      "ddl-auto": update
+    "show-sql": false
+    properties:
+      hibernate:
+        "format-sql": true
+        
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080}
+
+# JWT Configuration
+app:
+  jwt:
+    secret: ${JWT_SECRET:mySecretKey1234567890123456789012345678901234567890}
+    expiration: 86400000 # 24 hours in milliseconds
+    refresh-expiration: 604800000 # 7 days in milliseconds
+
+# AWS S3 Configuration
+aws:
+  s3:
+    bucket-name: ${AWS_S3_BUCKET:sweet-potato-receipts}
+    region: ${AWS_REGION:us-east-1}
+    access-key: ${AWS_ACCESS_KEY:your-access-key}
+    secret-key: ${AWS_SECRET_KEY:your-secret-key}
+
+# Mistral AI Configuration
+mistral:
+  api:
+    url: ${MISTRAL_API_URL:https://api.mistral.ai/v1}
+    key: ${MISTRAL_API_KEY:your-mistral-api-key}
+
+# Server Configuration
+server:
+  port: ${PORT:8080}
+  servlet:
+    "context-path": /api
+
+# Logging
+logging:
+  level:
+    com.sweetpotato: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fuel_tracker_dev
+    username: ${DB_USERNAME:fuel_user}
+    password: ${DB_PASSWORD:fuel_password}
+    "driver-class-name": org.postgresql.Driver
+  jpa:
+    hibernate:
+      "ddl-auto": update
+    "show-sql": true
+    properties:
+      hibernate:
+        "format_sql": true
+
+server:
+  port: 8081
+
+# Logging for development
+logging:
+  level:
+    com.sweetpotato: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+      
+---
+# Production Profile  
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    hibernate:
+      "ddl-auto": validate
+    "show-sql": false
+logging:
+  level:
+    com.sweetpotato: INFO
+    org.springframework.security: INFO
