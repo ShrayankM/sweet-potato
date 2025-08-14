@@ -9,17 +9,25 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useUploadReceiptMutation } from '../store/api/fuelRecordApi';
 
 export default function FuelRecordScreen() {
   const [stationName, setStationName] = useState('');
   const [amount, setAmount] = useState('');
   const [gallons, setGallons] = useState('');
+  const [location, setLocation] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrProcessed, setOcrProcessed] = useState(false);
   const navigation = useNavigation();
+  
+  const [uploadReceipt, { isLoading: isUploading }] = useUploadReceiptMutation();
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -38,6 +46,7 @@ export default function FuelRecordScreen() {
 
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri);
+      processReceiptWithOCR(result.assets[0]);
     }
   };
 
@@ -57,6 +66,69 @@ export default function FuelRecordScreen() {
 
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri);
+      processReceiptWithOCR(result.assets[0]);
+    }
+  };
+
+  const processReceiptWithOCR = async (imageAsset: ImagePicker.ImagePickerAsset) => {
+    setIsProcessing(true);
+    setOcrProcessed(false);
+
+    try {
+      // Prepare the image for upload
+      const imageForUpload = {
+        uri: imageAsset.uri,
+        type: 'image/jpeg', // Expo ImagePicker typically returns JPEG
+        name: `receipt_${Date.now()}.jpg`,
+      };
+
+      const result = await uploadReceipt({
+        receiptImage: imageForUpload,
+        stationName: stationName || undefined,
+        location: location || undefined,
+      }).unwrap();
+
+      // Update form with OCR results
+      if (result.ocrProcessed) {
+        setOcrProcessed(true);
+        if (result.stationName && !stationName) {
+          setStationName(result.stationName);
+        }
+        if (result.amount) {
+          setAmount(result.amount.toString());
+        }
+        if (result.gallons) {
+          setGallons(result.gallons.toString());
+        }
+        if (result.location && !location) {
+          setLocation(result.location);
+        }
+
+        Alert.alert(
+          '✨ Receipt Processed!',
+          'We\'ve extracted the information from your receipt. Please review and edit if needed.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Receipt Uploaded',
+          'Your receipt was uploaded, but we couldn\'t extract all the information. Please fill in the details manually.',
+          [{ text: 'OK' }]
+        );
+      }
+
+      // Navigate back or show success
+      navigation.goBack();
+
+    } catch (error: any) {
+      console.error('OCR processing failed:', error);
+      Alert.alert(
+        'Processing Failed',
+        error.data?.message || 'Failed to process receipt. Please try again or enter details manually.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -72,13 +144,29 @@ export default function FuelRecordScreen() {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!selectedImage) {
+      Alert.alert('Error', 'Please select a receipt image');
+      return;
+    }
+
     if (!stationName || !amount || !gallons) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    // TODO: Implement API call to save fuel record
+    // If we haven't processed with OCR yet, do it now
+    if (!ocrProcessed && selectedImage) {
+      Alert.alert(
+        'Processing Required',
+        'Please wait while we process your receipt.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // If we get here, the receipt was already processed via OCR
+    // The user might have made manual adjustments
     Alert.alert(
       'Success',
       'Fuel record saved successfully!',
@@ -95,16 +183,41 @@ export default function FuelRecordScreen() {
         <View style={styles.form}>
           <Text style={styles.title}>Add Fuel Record</Text>
           
-          <TouchableOpacity style={styles.imageButton} onPress={showImageOptions}>
-            <Ionicons 
-              name={selectedImage ? "checkmark-circle" : "camera-outline"} 
-              size={24} 
-              color={selectedImage ? "#4CAF50" : "#007AFF"} 
-            />
+          <TouchableOpacity 
+            style={[styles.imageButton, isProcessing && styles.imageButtonProcessing]} 
+            onPress={showImageOptions}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <ActivityIndicator size="small" color="#007AFF" />
+            ) : (
+              <Ionicons 
+                name={selectedImage ? "checkmark-circle" : "camera-outline"} 
+                size={24} 
+                color={selectedImage ? "#4CAF50" : "#007AFF"} 
+              />
+            )}
             <Text style={[styles.imageButtonText, selectedImage && styles.imageButtonSelected]}>
-              {selectedImage ? "Receipt Image Selected" : "Add Receipt Image"}
+              {isProcessing 
+                ? "Processing Receipt..." 
+                : selectedImage 
+                  ? "Receipt Image Selected" 
+                  : "Add Receipt Image"
+              }
             </Text>
           </TouchableOpacity>
+
+          {selectedImage && (
+            <View style={styles.imagePreview}>
+              <Image source={{ uri: selectedImage }} style={styles.previewImage} />
+              {ocrProcessed && (
+                <View style={styles.ocrBadge}>
+                  <Ionicons name="sparkles" size={16} color="#4CAF50" />
+                  <Text style={styles.ocrBadgeText}>OCR Processed</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           <TextInput
             style={styles.input}
@@ -128,9 +241,26 @@ export default function FuelRecordScreen() {
             onChangeText={setGallons}
             keyboardType="decimal-pad"
           />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Location (Optional)"
+            value={location}
+            onChangeText={setLocation}
+          />
           
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Save Record</Text>
+          <TouchableOpacity 
+            style={[styles.saveButton, (isProcessing || isUploading) && styles.saveButtonDisabled]} 
+            onPress={handleSave}
+            disabled={isProcessing || isUploading}
+          >
+            {isUploading ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.saveButtonText}>
+                {ocrProcessed ? "Record Saved" : "Save Record"}
+              </Text>
+            )}
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -192,6 +322,38 @@ const styles = StyleSheet.create({
   imageButtonSelected: {
     color: '#4CAF50',
   },
+  imageButtonProcessing: {
+    opacity: 0.7,
+    borderColor: '#FFA500',
+  },
+  imagePreview: {
+    marginBottom: 20,
+    borderRadius: 10,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  previewImage: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  ocrBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  ocrBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
   input: {
     height: 55,
     borderWidth: 1,
@@ -219,6 +381,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
   cancelButton: {
     height: 55,
