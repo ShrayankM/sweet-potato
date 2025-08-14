@@ -48,7 +48,7 @@ export default function ProfileScreen() {
           <Ionicons name="person-circle" size={100} color="#007AFF" />
         </View>
         <Text style={styles.userName}>
-          {user?.firstName} {user?.lastName}
+          {user?.userName}
         </Text>
         <Text style={styles.userEmail}>{user?.email}</Text>
       </View>

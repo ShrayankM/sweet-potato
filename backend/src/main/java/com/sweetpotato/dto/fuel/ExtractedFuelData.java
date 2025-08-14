@@ -18,8 +18,8 @@ public class ExtractedFuelData {
     private String stationBrand;
     private String address;
     private BigDecimal totalAmount;
-    private BigDecimal gallons;
-    private BigDecimal pricePerGallon;
+    private BigDecimal liters;
+    private BigDecimal pricePerLiter;
     private String fuelType; // Regular, Premium, Diesel, etc.
     private LocalDateTime purchaseDateTime;
     private String receiptNumber;

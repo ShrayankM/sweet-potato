@@ -89,8 +89,8 @@ public class FuelRecordService {
             builder
                 .stationName(extractedData.getStationName())
                 .amount(extractedData.getTotalAmount())
-                .gallons(extractedData.getGallons())
-                .pricePerGallon(extractedData.getPricePerGallon())
+                .liters(extractedData.getLiters())
+                .pricePerLiter(extractedData.getPricePerLiter())
                 .location(buildLocationString(extractedData))
                 .purchaseDate(extractedData.getPurchaseDateTime());
 
@@ -145,8 +145,8 @@ public class FuelRecordService {
                 .id(fuelRecord.getId())
                 .stationName(fuelRecord.getStationName())
                 .amount(fuelRecord.getAmount())
-                .gallons(fuelRecord.getGallons())
-                .pricePerGallon(fuelRecord.getPricePerGallon())
+                .gallons(fuelRecord.getLiters())
+                .pricePerGallon(fuelRecord.getPricePerLiter())
                 .receiptImageUrl(fuelRecord.getReceiptImageUrl())
                 .location(fuelRecord.getLocation())
                 .purchaseDate(fuelRecord.getPurchaseDate())

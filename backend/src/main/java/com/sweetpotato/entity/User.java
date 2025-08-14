@@ -27,15 +27,10 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    @NotBlank(message = "First name is required")
-    @Size(min = 1, max = 50, message = "First name must be between 1 and 50 characters")
-    private String firstName;
-
-    @Column(nullable = false)
-    @NotBlank(message = "Last name is required")
-    @Size(min = 1, max = 50, message = "Last name must be between 1 and 50 characters")
-    private String lastName;
+    @Column(name = "user_name", nullable = false)
+    @NotBlank(message = "User name is required")
+    @Size(min = 1, max = 50, message = "User name must be between 1 and 50 characters")
+    private String userName;
 
     @Column(nullable = false, unique = true)
     @Email(message = "Email should be valid")
@@ -79,7 +74,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email; // Using email as username
+        return userName; // Using userName as username
     }
 
     @Override

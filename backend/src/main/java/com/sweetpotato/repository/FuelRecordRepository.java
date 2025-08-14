@@ -22,8 +22,8 @@ public interface FuelRecordRepository extends JpaRepository<FuelRecord, Long> {
     @Query("SELECT SUM(fr.amount) FROM FuelRecord fr WHERE fr.user.id = :userId")
     BigDecimal getTotalAmountByUserId(@Param("userId") Long userId);
     
-    @Query("SELECT SUM(fr.gallons) FROM FuelRecord fr WHERE fr.user.id = :userId")
-    BigDecimal getTotalGallonsByUserId(@Param("userId") Long userId);
+    @Query("SELECT SUM(fr.liters) FROM FuelRecord fr WHERE fr.user.id = :userId")
+    BigDecimal getTotalLitersByUserId(@Param("userId") Long userId);
     
     @Query("SELECT COUNT(fr) FROM FuelRecord fr WHERE fr.user.id = :userId")
     Long getRecordCountByUserId(@Param("userId") Long userId);

@@ -21,8 +21,7 @@ import * as SecureStore from 'expo-secure-store';
 type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
 export default function RegisterScreen() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -32,7 +31,7 @@ export default function RegisterScreen() {
   const [register, { isLoading }] = useRegisterMutation();
 
   const handleRegister = async () => {
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+    if (!userName || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -49,8 +48,7 @@ export default function RegisterScreen() {
 
     try {
       const result = await register({ 
-        firstName, 
-        lastName, 
+        userName, 
         email, 
         password 
       }).unwrap();
@@ -58,7 +56,11 @@ export default function RegisterScreen() {
       // Store user data for session restoration
       await SecureStore.setItemAsync('user_data', JSON.stringify(result.user));
       
-      dispatch(setCredentials(result));
+      dispatch(setCredentials({
+        user: result.user,
+        token: result.token,
+        refreshToken: result.refreshToken
+      }));
     } catch (error: any) {
       Alert.alert('Registration Failed', error.data?.message || 'An error occurred');
     }
@@ -76,17 +78,9 @@ export default function RegisterScreen() {
           
           <TextInput
             style={styles.input}
-            placeholder="First Name"
-            value={firstName}
-            onChangeText={setFirstName}
-            autoCapitalize="words"
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Last Name"
-            value={lastName}
-            onChangeText={setLastName}
+            placeholder="User Name"
+            value={userName}
+            onChangeText={setUserName}
             autoCapitalize="words"
           />
           

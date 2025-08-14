@@ -38,8 +38,7 @@ public class AuthService {
 
         // Create new user
         User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
+                .userName(request.getUserName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .isActive(true)
@@ -118,8 +117,7 @@ public class AuthService {
     private UserResponse mapToUserResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
+                .userName(user.getUsername())
                 .email(user.getEmail())
                 .createdAt(user.getCreatedAt())
                 .isActive(user.getIsActive())

@@ -35,12 +35,12 @@ public class FuelRecord {
     @Positive(message = "Amount must be positive")
     private BigDecimal amount;
 
-    @Column(name = "gallons", precision = 10, scale = 3)
-    @Positive(message = "Gallons must be positive")
-    private BigDecimal gallons;
+    @Column(name = "liters", precision = 10, scale = 3)
+    @Positive(message = "Liters must be positive")
+    private BigDecimal liters;
 
-    @Column(name = "price_per_gallon", precision = 10, scale = 3)
-    private BigDecimal pricePerGallon;
+    @Column(name = "price_per_liter", precision = 10, scale = 3)
+    private BigDecimal pricePerLiter;
 
     @Column(name = "receipt_image_url")
     private String receiptImageUrl;
@@ -65,10 +65,10 @@ public class FuelRecord {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         
-        // Calculate price per gallon if not provided
-        if (pricePerGallon == null && amount != null && gallons != null && 
-            gallons.compareTo(BigDecimal.ZERO) > 0) {
-            pricePerGallon = amount.divide(gallons, 3, java.math.RoundingMode.HALF_UP);
+        // Calculate price per liter if not provided
+        if (pricePerLiter == null && amount != null && liters != null && 
+            liters.compareTo(BigDecimal.ZERO) > 0) {
+            pricePerLiter = amount.divide(liters, 3, java.math.RoundingMode.HALF_UP);
         }
     }
 
@@ -76,9 +76,9 @@ public class FuelRecord {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
         
-        // Recalculate price per gallon if amount or gallons changed
-        if (amount != null && gallons != null && gallons.compareTo(BigDecimal.ZERO) > 0) {
-            pricePerGallon = amount.divide(gallons, 3, java.math.RoundingMode.HALF_UP);
+        // Recalculate price per liter if amount or liters changed
+        if (amount != null && liters != null && liters.compareTo(BigDecimal.ZERO) > 0) {
+            pricePerLiter = amount.divide(liters, 3, java.math.RoundingMode.HALF_UP);
         }
     }
 }

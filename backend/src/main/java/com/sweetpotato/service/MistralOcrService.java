@@ -42,8 +42,8 @@ public class MistralOcrService {
             "state": "State abbreviation",
             "zipCode": "ZIP code",
             "totalAmount": "Total amount paid (number only, no currency symbol)",
-            "gallons": "Number of gallons purchased (number only)",
-            "pricePerGallon": "Price per gallon (number only)",
+            "liters": "Number of liters purchased (floating point number only)",
+            "pricePerLiter": "Price per liter (floating point number only)",
             "fuelType": "Type of fuel (Regular, Premium, Diesel, etc.)",
             "purchaseDateTime": "Date and time of purchase in ISO format",
             "receiptNumber": "Receipt or transaction number",
@@ -121,8 +121,8 @@ public class MistralOcrService {
                     .state(getStringValue(jsonNode, "state"))
                     .zipCode(getStringValue(jsonNode, "zipCode"))
                     .totalAmount(getBigDecimalValue(jsonNode, "totalAmount"))
-                    .gallons(getBigDecimalValue(jsonNode, "gallons"))
-                    .pricePerGallon(getBigDecimalValue(jsonNode, "pricePerGallon"))
+                    .liters(getBigDecimalValue(jsonNode, "liters"))
+                    .pricePerLiter(getBigDecimalValue(jsonNode, "pricePerLiter"))
                     .fuelType(getStringValue(jsonNode, "fuelType"))
                     .purchaseDateTime(getDateTimeValue(jsonNode, "purchaseDateTime"))
                     .receiptNumber(getStringValue(jsonNode, "receiptNumber"))
