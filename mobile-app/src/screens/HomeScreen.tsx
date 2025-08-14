@@ -6,38 +6,75 @@ import {
   StyleSheet,
   FlatList,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../store/hooks';
 import { AppStackParamList } from '../navigation/AppNavigator';
 import { Ionicons } from '@expo/vector-icons';
+import { useGetFuelRecordsQuery } from '../store/api/fuelRecordApi';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<AppStackParamList, 'Home'>;
-
-// Mock data for fuel records (will be replaced with API data later)
-const mockFuelRecords = [
-  { id: 1, station: 'Shell Station', amount: 45.50, date: '2024-01-15', gallons: 12.3 },
-  { id: 2, station: 'BP Gas Station', amount: 38.20, date: '2024-01-10', gallons: 10.8 },
-  { id: 3, station: 'Exxon Mobile', amount: 52.75, date: '2024-01-05', gallons: 14.2 },
-];
 
 export default function HomeScreen() {
   const { user } = useAppSelector(state => state.auth);
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  
+  // Fetch fuel records using RTK Query
+  const { 
+    data: fuelRecordsData, 
+    error, 
+    isLoading, 
+    refetch 
+  } = useGetFuelRecordsQuery({ page: 0, size: 10 });
 
-  const renderFuelRecord = ({ item }: { item: any }) => (
-    <View style={styles.recordCard}>
-      <View style={styles.recordHeader}>
-        <Text style={styles.stationName}>{item.station}</Text>
-        <Text style={styles.amount}>${item.amount.toFixed(2)}</Text>
+  const fuelRecords = fuelRecordsData?.content || [];
+  
+  // Calculate stats from real data
+  const stats = React.useMemo(() => {
+    const totalRecords = fuelRecordsData?.totalElements || 0;
+    const totalAmount = fuelRecords.reduce((sum, record) => sum + (record.amount || 0), 0);
+    const totalGallons = fuelRecords.reduce((sum, record) => sum + (record.gallons || 0), 0);
+    
+    return {
+      records: totalRecords,
+      totalSpent: totalAmount,
+      totalGallons: totalGallons,
+    };
+  }, [fuelRecords, fuelRecordsData?.totalElements]);
+
+  const renderFuelRecord = ({ item }: { item: any }) => {
+    const formatDate = (dateString: string) => {
+      try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString();
+      } catch {
+        return dateString;
+      }
+    };
+
+    return (
+      <View style={styles.recordCard}>
+        <View style={styles.recordHeader}>
+          <Text style={styles.stationName}>
+            {item.stationName || 'Gas Station'}
+          </Text>
+          <Text style={styles.amount}>
+            ${(item.amount || 0).toFixed(2)}
+          </Text>
+        </View>
+        <View style={styles.recordDetails}>
+          <Text style={styles.date}>
+            {item.purchaseDate ? formatDate(item.purchaseDate) : formatDate(item.createdAt)}
+          </Text>
+          <Text style={styles.gallons}>
+            {(item.gallons || 0).toFixed(1)} gallons
+          </Text>
+        </View>
       </View>
-      <View style={styles.recordDetails}>
-        <Text style={styles.date}>{item.date}</Text>
-        <Text style={styles.gallons}>{item.gallons} gallons</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -56,27 +93,53 @@ export default function HomeScreen() {
 
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>3</Text>
+          <Text style={styles.statNumber}>{stats.records}</Text>
           <Text style={styles.statLabel}>Records</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>$136.45</Text>
+          <Text style={styles.statNumber}>${stats.totalSpent.toFixed(2)}</Text>
           <Text style={styles.statLabel}>Total Spent</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>37.3</Text>
+          <Text style={styles.statNumber}>{stats.totalGallons.toFixed(1)}</Text>
           <Text style={styles.statLabel}>Total Gallons</Text>
         </View>
       </View>
 
       <View style={styles.recordsSection}>
         <Text style={styles.sectionTitle}>Recent Records</Text>
-        <FlatList
-          data={mockFuelRecords}
-          renderItem={renderFuelRecord}
-          keyExtractor={(item) => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-        />
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading your fuel records...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#FF3B30" />
+            <Text style={styles.errorText}>Failed to load fuel records</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={() => refetch()}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : fuelRecords.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="receipt-outline" size={48} color="#8E8E93" />
+            <Text style={styles.emptyText}>No fuel records yet</Text>
+            <Text style={styles.emptySubText}>Start by uploading your first receipt</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={fuelRecords}
+            renderItem={renderFuelRecord}
+            keyExtractor={(item) => item.id.toString()}
+            showsVerticalScrollIndicator={false}
+            onRefresh={refetch}
+            refreshing={isLoading}
+          />
+        )}
       </View>
 
       <TouchableOpacity 
@@ -209,5 +272,61 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  errorText: {
+    marginTop: 15,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FF3B30',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    marginTop: 15,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+  emptySubText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
   },
 });

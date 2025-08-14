@@ -4,7 +4,6 @@ import com.sweetpotato.dto.fuel.FuelReceiptResponse;
 import com.sweetpotato.dto.fuel.FuelReceiptUploadRequest;
 import com.sweetpotato.entity.User;
 import com.sweetpotato.service.FuelRecordService;
-import com.sweetpotato.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,7 +32,6 @@ import jakarta.servlet.http.HttpServletRequest;
 public class FuelRecordController {
 
     private final FuelRecordService fuelRecordService;
-    private final UserService userService;
     
     // Thread-safe set to track recent uploads and prevent duplicates
     private final Set<String> recentUploads = ConcurrentHashMap.newKeySet();
