@@ -37,10 +37,10 @@ export const fuelRecordApi = createApi({
       console.log('RTK Query - prepareHeaders called for endpoint:', endpoint);
 
       // TEMPORARY: Skip authentication for upload-receipt endpoint
-      if (endpoint === 'uploadReceipt') {
-        console.log('RTK Query - TEMPORARY: Skipping authentication for uploadReceipt endpoint');
-        return headers;
-      }
+      // if (endpoint === 'uploadReceipt') {
+      //   console.log('RTK Query - TEMPORARY: Skipping authentication for uploadReceipt endpoint');
+      //   return headers;
+      // }
 
       try {
         // Get authentication token

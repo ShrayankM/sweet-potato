@@ -17,11 +17,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import reactor.core.publisher.Mono;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,14 +39,14 @@ public class FuelRecordController {
     private final Set<String> recentUploads = ConcurrentHashMap.newKeySet();
 
     @PostMapping(value = "/upload-receipt", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Mono<ResponseEntity<FuelReceiptResponse>> uploadReceipt(
+    public ResponseEntity<FuelReceiptResponse> uploadReceipt(
             @RequestPart("receiptImage") MultipartFile receiptImage,
             @RequestPart(value = "stationName", required = false) String stationName,
             @RequestPart(value = "location", required = false) String location,
             @RequestPart(value = "purchaseDate", required = false) String purchaseDate,
             HttpServletRequest request) {
 
-        log.info("Receipt upload request received. Image size: {} bytes, Content-Type: {}", 
+        log.info("📤 Receipt upload request received. Image size: {} bytes, Content-Type: {}", 
                 receiptImage.getSize(), receiptImage.getContentType());
         log.debug("Request headers: User-Agent: {}, Authorization: {}", 
                 request.getHeader("User-Agent"), 
@@ -56,17 +55,20 @@ public class FuelRecordController {
         // Check for duplicate requests using file size + current user + time window
         User currentUser = getCurrentUser();
         if (currentUser == null) {
-            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+            log.error("❌ UNAUTHORIZED - No authenticated user found");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        
+        log.info("👤 Processing upload for user: {} ({})", currentUser.getEmail(), currentUser.getId());
         
         // Create unique request ID based on user ID, file size, and 10-second time window
         long timeWindow = System.currentTimeMillis() / 10000; // 10-second windows
         String requestId = currentUser.getId() + "_" + receiptImage.getSize() + "_" + timeWindow;
         
         if (recentUploads.contains(requestId)) {
-            log.warn("Duplicate upload request blocked for user: {}, request ID: {}, file size: {} bytes", 
+            log.warn("🚫 DUPLICATE - Upload request blocked for user: {}, request ID: {}, file size: {} bytes", 
                     currentUser.getId(), requestId, receiptImage.getSize());
-            return Mono.just(ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build());
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
         }
         
         // Add request ID to prevent duplicates
@@ -74,30 +76,33 @@ public class FuelRecordController {
         
         // Clean up old entries periodically (keep memory usage reasonable)
         if (recentUploads.size() > 1000) {
-            log.debug("Cleaning up old upload request IDs");
+            log.debug("🧹 Cleaning up old upload request IDs");
             recentUploads.clear();
         }
 
         // Validate file
         if (receiptImage.isEmpty()) {
+            log.error("❌ VALIDATION - Empty file received");
             recentUploads.remove(requestId); // Remove from tracking since it failed
-            return Mono.just(ResponseEntity.badRequest().build());
+            return ResponseEntity.badRequest().build();
         }
 
         // Validate file type
         String contentType = receiptImage.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            log.warn("Invalid file type received: {}", contentType);
+            log.warn("❌ VALIDATION - Invalid file type received: {}", contentType);
             recentUploads.remove(requestId); // Remove from tracking since it failed
-            return Mono.just(ResponseEntity.badRequest().build());
+            return ResponseEntity.badRequest().build();
         }
 
         // Validate file size (max 10MB)
         if (receiptImage.getSize() > 10 * 1024 * 1024) {
-            log.warn("File size too large: {} bytes", receiptImage.getSize());
+            log.warn("❌ VALIDATION - File size too large: {} bytes", receiptImage.getSize());
             recentUploads.remove(requestId); // Remove from tracking since it failed
-            return Mono.just(ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).build());
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).build();
         }
+
+        log.info("✅ VALIDATION - File passed all validation checks");
 
         // Create request object
         FuelReceiptUploadRequest uploadRequest = new FuelReceiptUploadRequest();
@@ -106,9 +111,30 @@ public class FuelRecordController {
         uploadRequest.setLocation(location);
         uploadRequest.setPurchaseDate(purchaseDate);
 
-        return fuelRecordService.processReceiptUpload(uploadRequest, currentUser)
-                .map(response -> ResponseEntity.ok(response))
-                .onErrorReturn(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+        log.info("🚀 STARTING - Synchronous processing for user: {}", currentUser.getId());
+
+        try {
+            // Convert reactive to synchronous with timeout
+            FuelReceiptResponse result = fuelRecordService.processReceiptUpload(uploadRequest, currentUser)
+                    .block(Duration.ofSeconds(45)); // Wait max 45 seconds
+            
+            if (result != null) {
+                log.info("✅ SUCCESS - Got result: ID={}, Amount={}", result.getId(), result.getAmount());
+                recentUploads.remove(requestId);
+                
+                // Log the exact response being sent
+                log.info("📤 SENDING RESPONSE - Status: 200 OK, Body: {}", result);
+                return ResponseEntity.ok(result);
+            } else {
+                log.error("❌ ERROR - processReceiptUpload returned null");
+                recentUploads.remove(requestId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+        } catch (Exception e) {
+            log.error("❌ EXCEPTION - Error during synchronous processing", e);
+            recentUploads.remove(requestId);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     // Test endpoint to validate JWT authentication
