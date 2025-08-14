@@ -2,13 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   ActivityIndicator,
   Image,
 } from 'react-native';
@@ -19,17 +15,9 @@ import * as SecureStore from 'expo-secure-store';
 import { useUploadReceiptMutation } from '../store/api/fuelRecordApi';
 
 export default function FuelRecordScreen() {
-  const [stationName, setStationName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [gallons, setGallons] = useState('');
-  const [location, setLocation] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [ocrProcessed, setOcrProcessed] = useState(false);
-  const [uploadedRecordId, setUploadedRecordId] = useState<number | null>(null);
-  const [isUploadComplete, setIsUploadComplete] = useState(false);
-  const [hasReceivedSuccessfulResponse, setHasReceivedSuccessfulResponse] = useState(false);
-  const [isUploadInProgress, setIsUploadInProgress] = useState(false);
+  const [uploadResult, setUploadResult] = useState<any>(null);
   const navigation = useNavigation();
   
   const [uploadReceipt, { isLoading: isUploading }] = useUploadReceiptMutation();
@@ -69,12 +57,11 @@ export default function FuelRecordScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 0.8,
     });
 
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri);
-      processReceiptWithOCR(result.assets[0]);
     }
   };
 
@@ -89,377 +76,244 @@ export default function FuelRecordScreen() {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 0.8,
     });
 
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri);
-      processReceiptWithOCR(result.assets[0]);
     }
   };
 
-  const processReceiptWithOCR = async (imageAsset: ImagePicker.ImagePickerAsset) => {
-    // Prevent duplicate uploads - enhanced protection
-    if (isUploadComplete || uploadedRecordId || hasReceivedSuccessfulResponse || isUploadInProgress) {
-      console.log('Upload already completed, successful, or in progress - skipping duplicate request');
+  const uploadReceiptImage = async () => {
+    if (!selectedImage) {
+      Alert.alert('No Image Selected', 'Please select an image first.');
       return;
     }
 
-    // Set upload in progress IMMEDIATELY to prevent duplicates
-    setIsUploadInProgress(true);
-    setIsProcessing(true);
-    setOcrProcessed(false);
+    if (isProcessing || isUploading) {
+      console.log('Upload already in progress, ignoring request');
+      return;
+    }
 
+    setIsProcessing(true);
+    
+    // Small delay to prevent duplicate requests
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     try {
       // Prepare the image for upload
       const imageForUpload = {
-        uri: imageAsset.uri,
-        type: 'image/jpeg', // Expo ImagePicker typically returns JPEG
+        uri: selectedImage,
+        type: 'image/jpeg',
         name: `receipt_${Date.now()}.jpg`,
       };
 
       console.log('Starting upload receipt request...');
       
-      // Debug: Check if we have a valid token
-      const token = await SecureStore.getItemAsync('access_token');
-      console.log('Auth token present:', token ? 'Yes' : 'No');
-      console.log('Auth token length:', token ? token.length : 0);
-      if (token) {
-        console.log('Token starts with:', token.substring(0, 20) + '...');
-        console.log('Token ends with:', '...' + token.substring(token.length - 20));
-        
-        // Parse JWT payload to check if token is expired
-        try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            // Simple base64 decode for JWT payload
-            const payload = JSON.parse(atob(parts[1]));
-            const currentTime = Math.floor(Date.now() / 1000);
-            console.log('Token payload:', {
-              subject: payload.sub,
-              issuedAt: new Date(payload.iat * 1000).toISOString(),
-              expiresAt: new Date(payload.exp * 1000).toISOString(),
-              currentTime: new Date(currentTime * 1000).toISOString(),
-              isExpired: currentTime > payload.exp
-            });
-          }
-        } catch (error) {
-          console.error('Error parsing token:', error);
-        }
-      }
-      
-      const uploadPromise = uploadReceipt({
+      const result = await uploadReceipt({
         receiptImage: imageForUpload,
-        stationName: stationName || undefined,
-        location: location || undefined,
-      });
-
-      console.log('Waiting for upload response...');
-      const result = await uploadPromise.unwrap();
+      }).unwrap();
       
       console.log('Upload successful! Result:', result);
-      console.log('SUCCESS: Setting completion states to prevent any further requests');
+      setUploadResult(result);
 
-      // Mark upload as complete to prevent duplicates - IMMEDIATE
-      setUploadedRecordId(result.id);
-      setIsUploadComplete(true);
-      setHasReceivedSuccessfulResponse(true);
-      setIsUploadInProgress(false); // Clear upload in progress
-      
-      console.log('SUCCESS: All states set - no more requests should be made');
-
-      // Update form with OCR results
+      // Show success message with extracted data
       if (result.ocrProcessed) {
-        setOcrProcessed(true);
-        if (result.stationName && !stationName) {
-          setStationName(result.stationName);
-        }
-        if (result.amount) {
-          setAmount(result.amount.toString());
-        }
-        if (result.gallons) {
-          setGallons(result.gallons.toString());
-        }
-        if (result.location && !location) {
-          setLocation(result.location);
-        }
-
+        const extractedInfo = [];
+        if (result.stationName) extractedInfo.push(`Station: ${result.stationName}`);
+        if (result.amount) extractedInfo.push(`Amount: $${result.amount}`);
+        if (result.gallons) extractedInfo.push(`Gallons: ${result.gallons}`);
+        if (result.location) extractedInfo.push(`Location: ${result.location}`);
+        
         Alert.alert(
-          '✨ Receipt Processed!',
-          'We\'ve extracted the information from your receipt. Please review and edit if needed.',
-          [{ text: 'OK' }]
+          '✅ Receipt Processed Successfully!',
+          extractedInfo.length > 0 ? `Extracted info:\n${extractedInfo.join('\n')}` : 'Receipt uploaded and processed.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } else {
         Alert.alert(
-          'Receipt Uploaded',
-          'Your receipt was uploaded, but we couldn\'t extract all the information. Please fill in the details manually.',
-          [{ text: 'OK' }]
+          '✅ Receipt Uploaded',
+          'Your receipt was uploaded successfully but OCR processing is still in progress.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       }
-
-      // Navigate back or show success
-      navigation.goBack();
 
     } catch (error: any) {
-      console.error('OCR processing failed:', error);
+      console.error('Upload failed - Full error object:', error);
+      console.error('Upload failed - Error status:', error.status);
+      console.error('Upload failed - Error data:', error.data);
       
-      // If we've already received a successful response, ignore subsequent errors
-      // (they're likely from duplicate/retry requests)
-      if (hasReceivedSuccessfulResponse) {
-        console.log('Ignoring error since we already received a successful response');
-        return;
+      let errorMessage = 'Failed to upload receipt. Please try again.';
+      
+      if (error.status === 403) {
+        errorMessage = 'Authentication failed. Please try logging out and back in.';
+      } else if (error.status === 401) {
+        errorMessage = 'Your session has expired. Please log in again.';
+      } else if (error.status === 413) {
+        errorMessage = 'Image file is too large. Please try a smaller image.';
+      } else if (error.data?.message) {
+        errorMessage = error.data.message;
       }
       
-      // Check if this is a 403/429 error which might indicate the request succeeded 
-      // but a duplicate was blocked (backend creates record successfully on first try)
-      if (error.status === 403 || error.status === 429) {
-        console.log('Received 403/429 error - checking if this might be from a duplicate request after successful upload');
-        
-        // Don't reset states immediately, give user option to check if record was actually created
-        Alert.alert(
-          'Authentication Issue',
-          'There was an authentication problem. This could be because your session has expired. Please try logging out and logging back in, or check your fuel records to see if the upload succeeded.',
-          [
-            { text: 'Check Records', onPress: () => navigation.goBack() },
-            { text: 'Retry', onPress: () => {
-              // Reset states for retry
-              setIsUploadComplete(false);
-              setUploadedRecordId(null);
-              setOcrProcessed(false);
-              setHasReceivedSuccessfulResponse(false);
-              setIsUploadInProgress(false);
-            }},
-            { text: 'Go to Profile', onPress: () => navigation.navigate('Profile' as never) }
-          ]
-        );
-      } else {
-        // Reset upload state on other errors to allow retry
-        setIsUploadComplete(false);
-        setUploadedRecordId(null);
-        setOcrProcessed(false);
-        setHasReceivedSuccessfulResponse(false);
-        setIsUploadInProgress(false);
-        
-        Alert.alert(
-          'Processing Failed',
-          error.data?.message || 'Failed to process receipt. Please try again or enter details manually.',
-          [{ text: 'OK' }]
-        );
-      }
+      Alert.alert(
+        'Upload Failed',
+        `${errorMessage}\n\nTechnical details: Status ${error.status}`,
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsProcessing(false);
-      // Always clear upload in progress in finally block
-      setIsUploadInProgress(false);
     }
   };
 
   const showImageOptions = () => {
     Alert.alert(
-      'Select Image',
-      'Choose how you want to add a receipt image',
+      'Select Receipt Image',
+      'Choose how you want to add your fuel receipt',
       [
-        { text: 'Camera', onPress: takePhoto },
-        { text: 'Photo Library', onPress: pickImage },
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Gallery', onPress: pickImage },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
-  const handleSave = async () => {
-    if (!selectedImage) {
-      Alert.alert('Error', 'Please select a receipt image');
-      return;
-    }
-
-    if (!ocrProcessed && !isUploadComplete) {
-      Alert.alert(
-        'Processing Required',
-        'Please wait while we process your receipt.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    if (isUploadComplete && uploadedRecordId) {
-      // Receipt already uploaded successfully
-      Alert.alert(
-        'Success',
-        `Fuel record saved successfully! Record ID: ${uploadedRecordId}`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
-    } else {
-      Alert.alert('Error', 'Receipt processing is not complete. Please try again.');
-    }
-  };
-
-  // Reset function for uploading a new receipt
   const resetForm = () => {
     setSelectedImage(null);
     setIsProcessing(false);
-    setOcrProcessed(false);
-    setUploadedRecordId(null);
-    setIsUploadComplete(false);
-    setHasReceivedSuccessfulResponse(false);
-    setIsUploadInProgress(false);
-    setStationName('');
-    setAmount('');
-    setGallons('');
-    setLocation('');
+    setUploadResult(null);
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.form}>
-          <Text style={styles.title}>Add Fuel Record</Text>
-          
-          <TouchableOpacity 
-            style={[styles.imageButton, isProcessing && styles.imageButtonProcessing]} 
-            onPress={showImageOptions}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <ActivityIndicator size="small" color="#007AFF" />
-            ) : (
-              <Ionicons 
-                name={selectedImage ? "checkmark-circle" : "camera-outline"} 
-                size={24} 
-                color={selectedImage ? "#4CAF50" : "#007AFF"} 
-              />
-            )}
-            <Text style={[styles.imageButtonText, selectedImage && styles.imageButtonSelected]}>
-              {isProcessing 
-                ? "Processing Receipt..." 
-                : selectedImage 
-                  ? "Receipt Image Selected" 
-                  : "Add Receipt Image"
-              }
-            </Text>
-          </TouchableOpacity>
-
-          {selectedImage && (
-            <View style={styles.imagePreview}>
-              <Image source={{ uri: selectedImage }} style={styles.previewImage} />
-              {ocrProcessed && (
-                <View style={styles.ocrBadge}>
-                  <Ionicons name="sparkles" size={16} color="#4CAF50" />
-                  <Text style={styles.ocrBadgeText}>OCR Processed</Text>
-                </View>
-              )}
-            </View>
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Upload Fuel Receipt</Text>
+        <Text style={styles.subtitle}>
+          Take a photo or select an image of your fuel receipt. Our system will automatically extract the fuel data.
+        </Text>
+        
+        <TouchableOpacity 
+          style={[styles.imageButton, isProcessing && styles.imageButtonProcessing]} 
+          onPress={showImageOptions}
+          disabled={isProcessing || isUploading}
+        >
+          {isProcessing || isUploading ? (
+            <ActivityIndicator size="large" color="#007AFF" />
+          ) : (
+            <Ionicons 
+              name={selectedImage ? "checkmark-circle" : "camera-outline"} 
+              size={48} 
+              color={selectedImage ? "#4CAF50" : "#007AFF"} 
+            />
           )}
+          <Text style={[styles.imageButtonText, selectedImage && styles.imageButtonSelected]}>
+            {isProcessing || isUploading
+              ? "Processing Receipt..." 
+              : selectedImage 
+                ? "Receipt Image Selected" 
+                : "Select Receipt Image"
+            }
+          </Text>
+        </TouchableOpacity>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Gas Station Name"
-            value={stationName}
-            onChangeText={setStationName}
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Total Amount ($)"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Gallons"
-            value={gallons}
-            onChangeText={setGallons}
-            keyboardType="decimal-pad"
-          />
+        {selectedImage && (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: selectedImage }} style={styles.previewImage} />
+            {uploadResult && uploadResult.ocrProcessed && (
+              <View style={styles.ocrBadge}>
+                <Ionicons name="checkmark-circle" size={16} color="white" />
+                <Text style={styles.ocrBadgeText}>Processed</Text>
+              </View>
+            )}
+          </View>
+        )}
 
-          <TextInput
-            style={styles.input}
-            placeholder="Location (Optional)"
-            value={location}
-            onChangeText={setLocation}
-          />
-          
+        {uploadResult && (
+          <View style={styles.resultContainer}>
+            <Text style={styles.resultTitle}>✅ Upload Successful!</Text>
+            {uploadResult.stationName && <Text style={styles.resultText}>Station: {uploadResult.stationName}</Text>}
+            {uploadResult.amount && <Text style={styles.resultText}>Amount: ${uploadResult.amount}</Text>}
+            {uploadResult.gallons && <Text style={styles.resultText}>Gallons: {uploadResult.gallons}</Text>}
+            {uploadResult.location && <Text style={styles.resultText}>Location: {uploadResult.location}</Text>}
+          </View>
+        )}
+        
+        {selectedImage && !uploadResult && (
           <TouchableOpacity 
-            style={[styles.saveButton, (isProcessing || isUploading) && styles.saveButtonDisabled]} 
-            onPress={handleSave}
+            style={[styles.uploadButton, (isProcessing || isUploading) && styles.uploadButtonDisabled]} 
+            onPress={uploadReceiptImage}
             disabled={isProcessing || isUploading}
           >
             {isUploading || isProcessing ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
-              <Text style={styles.saveButtonText}>
-                {isUploadComplete ? "✅ Record Saved!" : (ocrProcessed ? "Complete Upload" : "Process Receipt")}
-              </Text>
+              <Text style={styles.uploadButtonText}>Upload Receipt</Text>
             )}
           </TouchableOpacity>
-          
-          {isUploadComplete ? (
-            <TouchableOpacity 
-              style={styles.newReceiptButton} 
-              onPress={resetForm}
-            >
-              <Text style={styles.newReceiptButtonText}>📷 New Receipt</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity 
-              style={styles.cancelButton} 
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        )}
+        
+        {uploadResult ? (
+          <TouchableOpacity 
+            style={styles.newReceiptButton} 
+            onPress={resetForm}
+          >
+            <Text style={styles.newReceiptButtonText}>📷 Upload Another Receipt</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.cancelButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
+    padding: 24,
     justifyContent: 'center',
-  },
-  form: {
-    margin: 20,
-    padding: 30,
-    backgroundColor: 'white',
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 30,
-    color: '#333',
+    marginBottom: 12,
+    color: '#1a1a1a',
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 32,
+    color: '#666',
+    lineHeight: 22,
   },
   imageButton: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#007AFF',
     borderStyle: 'dashed',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 16,
+    padding: 40,
+    marginBottom: 24,
+    backgroundColor: '#f8f9ff',
+    minHeight: 160,
   },
   imageButtonText: {
-    marginLeft: 10,
-    fontSize: 16,
+    marginTop: 12,
+    fontSize: 18,
     color: '#007AFF',
-    fontWeight: '500',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   imageButtonSelected: {
     color: '#4CAF50',
@@ -467,73 +321,90 @@ const styles = StyleSheet.create({
   imageButtonProcessing: {
     opacity: 0.7,
     borderColor: '#FFA500',
+    backgroundColor: '#fff9f0',
   },
   imagePreview: {
-    marginBottom: 20,
-    borderRadius: 10,
+    marginBottom: 24,
+    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   previewImage: {
     width: '100%',
-    height: 200,
+    height: 250,
     resizeMode: 'cover',
   },
   ocrBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    top: 12,
+    right: 12,
+    backgroundColor: '#4CAF50',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   ocrBadgeText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
     marginLeft: 4,
   },
-  input: {
-    height: 55,
+  resultContainer: {
+    backgroundColor: '#e8f5e8',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    marginBottom: 20,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
+    borderColor: '#4CAF50',
   },
-  saveButton: {
+  resultTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  resultText: {
+    fontSize: 14,
+    color: '#2e7d32',
+    marginBottom: 4,
+  },
+  uploadButton: {
     backgroundColor: '#007AFF',
-    height: 55,
-    borderRadius: 10,
+    height: 56,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
     shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  saveButtonText: {
+  uploadButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
   },
-  saveButtonDisabled: {
+  uploadButtonDisabled: {
     opacity: 0.6,
   },
   cancelButton: {
-    height: 55,
-    borderRadius: 10,
+    height: 56,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    backgroundColor: 'white',
   },
   cancelButtonText: {
     color: '#666',
@@ -541,16 +412,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   newReceiptButton: {
-    height: 55,
-    borderRadius: 10,
+    height: 56,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#28A745',
-    marginTop: 10,
+    marginBottom: 16,
     shadowColor: '#28A745',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
+    shadowRadius: 6,
     elevation: 3,
   },
   newReceiptButtonText: {
