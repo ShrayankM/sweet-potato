@@ -1,5 +1,6 @@
 package com.sweetpotato.dto.fuel;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,19 +36,29 @@ public class MistralOcrRequest {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)  // Exclude null fields from JSON
     public static class Content {
         private String type;
-        private String text;
+        
+        // Only include the relevant field based on type
+        private String text;  // Only for type="text"
         
         @JsonProperty("image_url")
-        private ImageUrl imageUrl;
-    }
-    
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ImageUrl {
-        private String url;
+        private String imageUrl;  // Only for type="image_url"
+        
+        // Constructor helpers for specific types
+        public static Content text(String text) {
+            return Content.builder()
+                    .type("text")
+                    .text(text)
+                    .build();
+        }
+        
+        public static Content imageUrl(String imageUrl) {
+            return Content.builder()
+                    .type("image_url")
+                    .imageUrl(imageUrl)
+                    .build();
+        }
     }
 }

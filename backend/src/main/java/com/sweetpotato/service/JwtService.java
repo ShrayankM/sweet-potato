@@ -1,5 +1,6 @@
 package com.sweetpotato.service;
 
+import com.sweetpotato.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -29,6 +30,7 @@ public class JwtService {
     @Value("${app.jwt.refresh-expiration}")
     private long refreshExpiration;
 
+    // This method extracts the subject from JWT token, which is now the user's email
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -55,10 +57,18 @@ public class JwtService {
             UserDetails userDetails,
             long expiration
     ) {
+        // Cast to User to access the email field
+        String subject;
+        if (userDetails instanceof User) {
+            subject = ((User) userDetails).getEmail();
+        } else {
+            subject = userDetails.getUsername();
+        }
+        
         return Jwts
                 .builder()
                 .setClaims(extraClaims)
-                .setSubject(userDetails.getUsername())
+                .setSubject(subject)  // Now using email as subject
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
@@ -66,8 +76,33 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        try {
+            final String extractedEmail = extractUsername(token);
+            log.debug("JWT Validation - Extracted email from token: '{}'", extractedEmail);
+            
+            // Compare with email instead of username
+            String userEmail;
+            if (userDetails instanceof User) {
+                userEmail = ((User) userDetails).getEmail();
+                log.debug("JWT Validation - User email from UserDetails: '{}'", userEmail);
+            } else {
+                userEmail = extractedEmail; // fallback
+                log.debug("JWT Validation - Using fallback email: '{}'", userEmail);
+            }
+            
+            boolean emailsMatch = extractedEmail.equals(userEmail);
+            boolean isNotExpired = !isTokenExpired(token);
+            
+            log.debug("JWT Validation - Emails match: {}, Token not expired: {}", emailsMatch, isNotExpired);
+            
+            boolean isValid = emailsMatch && isNotExpired;
+            log.debug("JWT Validation - Final result: {}", isValid);
+            
+            return isValid;
+        } catch (Exception e) {
+            log.error("JWT Validation - Error during token validation: {}", e.getMessage(), e);
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
@@ -80,14 +115,17 @@ public class JwtService {
 
     private Claims extractAllClaims(String token) {
         try {
-            return Jwts
+            log.debug("JWT Parsing - Token length: {}, starts with: {}...", token.length(), token.substring(0, Math.min(20, token.length())));
+            Claims claims = Jwts
                     .parserBuilder()
                     .setSigningKey(getSignInKey())
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
+            log.debug("JWT Parsing - Successfully parsed claims, subject: {}", claims.getSubject());
+            return claims;
         } catch (Exception e) {
-            log.error("JWT token parsing failed: {}", e.getMessage());
+            log.error("JWT token parsing failed: {}", e.getMessage(), e);
             throw e;
         }
     }

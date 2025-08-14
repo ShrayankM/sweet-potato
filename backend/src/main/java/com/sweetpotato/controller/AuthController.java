@@ -27,6 +27,7 @@ public class AuthController {
     ) {
         log.info("Registration request received for email: {}", request.getEmail());
         AuthResponse response = authService.register(request);
+        log.info("Registration response: {}", response);
         return ResponseEntity.ok(response);
     }
 

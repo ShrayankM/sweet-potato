@@ -1,5 +1,8 @@
 package com.sweetpotato.service;
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.S3Object;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sweetpotato.dto.fuel.ExtractedFuelData;
 import com.sweetpotato.dto.fuel.MistralOcrRequest;
@@ -10,12 +13,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -25,12 +31,16 @@ public class MistralOcrService {
 
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
+    private final AmazonS3 s3Client;
 
     @Value("${mistral.api.url}")
     private String mistralApiUrl;
 
     @Value("${mistral.api.key}")
     private String mistralApiKey;
+
+    @Value("${aws.s3.bucket-name}")
+    private String bucketName;
 
     private static final String FUEL_RECEIPT_PROMPT = """
         Please analyze this fuel receipt image and extract the following information in JSON format:
@@ -58,31 +68,119 @@ public class MistralOcrService {
     public Mono<ExtractedFuelData> processReceiptImage(String imageUrl) {
         log.info("Processing fuel receipt image with Mistral AI: {}", imageUrl);
 
-        MistralOcrRequest request = buildMistralRequest(imageUrl);
-        
-        return webClientBuilder.build()
-                .post()
-                .uri(mistralApiUrl + "/chat/completions")
-                .header("Authorization", "Bearer " + mistralApiKey)
-                .header("Content-Type", "application/json")
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(MistralOcrResponse.class)
-                .doOnNext(response -> log.info("Received Mistral AI response: {}", response))
-                .map(this::parseExtractedData)
+        // First, download the image and convert to base64
+        return downloadAndEncodeImage(imageUrl)
+                .flatMap(base64Image -> {
+                    MistralOcrRequest request = buildMistralRequest(base64Image);
+                    
+                    // Log the request for debugging
+                    try {
+                        String requestJson = objectMapper.writeValueAsString(request);
+                        log.info("Sending request to Mistral AI: {}", requestJson.substring(0, Math.min(500, requestJson.length())) + "...");
+                    } catch (Exception e) {
+                        log.warn("Could not log request JSON", e);
+                    }
+                    
+                    return webClientBuilder.build()
+                            .post()
+                            .uri(mistralApiUrl + "/chat/completions")
+                            .header("Authorization", "Bearer " + mistralApiKey)
+                            .header("Content-Type", "application/json")
+                            .bodyValue(request)
+                            .retrieve()
+                            .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                                clientResponse -> {
+                                    return clientResponse.bodyToMono(String.class)
+                                        .flatMap(errorBody -> {
+                                            log.error("Mistral AI API Error ({}): {}", clientResponse.statusCode(), errorBody);
+                                            return Mono.error(new RuntimeException("Mistral AI API Error: " + errorBody));
+                                        });
+                                })
+                            .bodyToMono(MistralOcrResponse.class)
+                            .doOnNext(response -> log.info("Received Mistral AI response: {}", response))
+                            .map(this::parseExtractedData);
+                })
                 .doOnError(error -> log.error("Error calling Mistral AI API", error));
     }
 
-    private MistralOcrRequest buildMistralRequest(String imageUrl) {
-        MistralOcrRequest.Content textContent = MistralOcrRequest.Content.builder()
-                .type("text")
-                .text(FUEL_RECEIPT_PROMPT)
-                .build();
+    private Mono<String> downloadAndEncodeImage(String imageUrl) {
+        return Mono.fromCallable(() -> {
+            try {
+                // Extract S3 key from URL
+                String s3Key = extractS3KeyFromUrl(imageUrl);
+                log.info("Downloading image from S3 with key: {}", s3Key);
+                
+                // Download image from S3
+                S3Object s3Object = s3Client.getObject(bucketName, s3Key);
+                byte[] imageBytes = s3Object.getObjectContent().readAllBytes();
+                s3Object.close();
+                
+                // Convert to base64
+                String base64 = Base64.getEncoder().encodeToString(imageBytes);
+                String format = determineImageFormat(imageUrl);
+                
+                log.info("Successfully converted S3 image to base64 format, size: {} bytes", imageBytes.length);
+                return "data:image/" + format + ";base64," + base64;
+                
+            } catch (IOException e) {
+                log.error("Error downloading image from S3: {}", e.getMessage());
+                throw new RuntimeException("Failed to download image from S3", e);
+            }
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .doOnError(error -> log.error("Error in downloadAndEncodeImage: {}", error.getMessage()));
+    }
 
-        MistralOcrRequest.Content imageContent = MistralOcrRequest.Content.builder()
-                .type("image_url")
-                .imageUrl(MistralOcrRequest.ImageUrl.builder().url(imageUrl).build())
-                .build();
+    private String extractS3KeyFromUrl(String s3Url) {
+        // S3 URL format: https://bucket-name.s3.region.amazonaws.com/key
+        // Example: https://sweet-potato-receipts.s3.ap-south-1.amazonaws.com/receipts/filename.jpg
+        // Key should be: receipts/filename.jpg
+        
+        try {
+            log.debug("Extracting S3 key from URL: {}", s3Url);
+            log.debug("Expected bucket name: {}", bucketName);
+            
+            // Look for the pattern: bucketName.s3.region.amazonaws.com/
+            String domainPattern = bucketName + ".s3.";
+            int domainStart = s3Url.indexOf(domainPattern);
+            
+            if (domainStart != -1) {
+                // Find the first slash after the domain
+                int domainEnd = domainStart + domainPattern.length();
+                int regionEnd = s3Url.indexOf(".amazonaws.com/", domainEnd);
+                
+                if (regionEnd != -1) {
+                    // Extract everything after ".amazonaws.com/"
+                    String key = s3Url.substring(regionEnd + ".amazonaws.com/".length());
+                    log.debug("Extracted S3 key: {}", key);
+                    return key;
+                }
+            }
+            
+            throw new IllegalArgumentException("Could not extract S3 key from URL: " + s3Url);
+        } catch (Exception e) {
+            log.error("Error extracting S3 key from URL: {} - {}", s3Url, e.getMessage());
+            throw new IllegalArgumentException("Invalid S3 URL format: " + s3Url, e);
+        }
+    }
+
+    private String determineImageFormat(String imageUrl) {
+        String lowerUrl = imageUrl.toLowerCase();
+        if (lowerUrl.contains(".png")) {
+            return "png";
+        } else if (lowerUrl.contains(".gif")) {
+            return "gif";
+        } else if (lowerUrl.contains(".webp")) {
+            return "webp";
+        } else {
+            return "jpeg"; // default
+        }
+    }
+
+    private MistralOcrRequest buildMistralRequest(String base64Image) {
+        // Use the helper methods to ensure correct structure
+        MistralOcrRequest.Content textContent = MistralOcrRequest.Content.text(FUEL_RECEIPT_PROMPT);
+        MistralOcrRequest.Content imageContent = MistralOcrRequest.Content.imageUrl(base64Image);
 
         MistralOcrRequest.Message message = MistralOcrRequest.Message.builder()
                 .role("user")
@@ -90,11 +188,10 @@ public class MistralOcrService {
                 .build();
 
         return MistralOcrRequest.builder()
-                .model("pixtral-12b-2409")
+                .model("pixtral-12b-2409")  // Use exact model name from curl example
                 .messages(List.of(message))
-                .maxTokens(1000)
-                .temperature(0.1)
-                .build();
+                .maxTokens(300)  // Match the curl example
+                .build();  // Remove temperature for now to match curl example exactly
     }
 
     private ExtractedFuelData parseExtractedData(MistralOcrResponse response) {
@@ -144,7 +241,7 @@ public class MistralOcrService {
         return content.trim();
     }
 
-    private String getStringValue(com.fasterxml.jackson.databind.JsonNode node, String fieldName) {
+    private String getStringValue(JsonNode node, String fieldName) {
         var fieldNode = node.get(fieldName);
         if (fieldNode == null || fieldNode.isNull() || "null".equals(fieldNode.asText())) {
             return null;
@@ -152,7 +249,7 @@ public class MistralOcrService {
         return fieldNode.asText();
     }
 
-    private BigDecimal getBigDecimalValue(com.fasterxml.jackson.databind.JsonNode node, String fieldName) {
+    private BigDecimal getBigDecimalValue(JsonNode node, String fieldName) {
         var fieldNode = node.get(fieldName);
         if (fieldNode == null || fieldNode.isNull() || "null".equals(fieldNode.asText())) {
             return null;
@@ -165,7 +262,7 @@ public class MistralOcrService {
         }
     }
 
-    private Double getDoubleValue(com.fasterxml.jackson.databind.JsonNode node, String fieldName) {
+    private Double getDoubleValue(JsonNode node, String fieldName) {
         var fieldNode = node.get(fieldName);
         if (fieldNode == null || fieldNode.isNull() || "null".equals(fieldNode.asText())) {
             return null;
@@ -178,7 +275,7 @@ public class MistralOcrService {
         }
     }
 
-    private LocalDateTime getDateTimeValue(com.fasterxml.jackson.databind.JsonNode node, String fieldName) {
+    private LocalDateTime getDateTimeValue(JsonNode node, String fieldName) {
         var fieldNode = node.get(fieldName);
         if (fieldNode == null || fieldNode.isNull() || "null".equals(fieldNode.asText())) {
             return null;

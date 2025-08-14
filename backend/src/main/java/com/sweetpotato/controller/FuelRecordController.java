@@ -21,7 +21,11 @@ import reactor.core.publisher.Mono;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/fuel-records")
@@ -31,18 +35,52 @@ public class FuelRecordController {
 
     private final FuelRecordService fuelRecordService;
     private final UserService userService;
+    
+    // Thread-safe set to track recent uploads and prevent duplicates
+    private final Set<String> recentUploads = ConcurrentHashMap.newKeySet();
 
     @PostMapping(value = "/upload-receipt", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<ResponseEntity<FuelReceiptResponse>> uploadReceipt(
             @RequestPart("receiptImage") MultipartFile receiptImage,
             @RequestPart(value = "stationName", required = false) String stationName,
             @RequestPart(value = "location", required = false) String location,
-            @RequestPart(value = "purchaseDate", required = false) String purchaseDate) {
+            @RequestPart(value = "purchaseDate", required = false) String purchaseDate,
+            HttpServletRequest request) {
 
-        log.info("Receipt upload request received. Image size: {} bytes", receiptImage.getSize());
+        log.info("Receipt upload request received. Image size: {} bytes, Content-Type: {}", 
+                receiptImage.getSize(), receiptImage.getContentType());
+        log.debug("Request headers: User-Agent: {}, Authorization: {}", 
+                request.getHeader("User-Agent"), 
+                request.getHeader("Authorization") != null ? "Bearer [present]" : "null");
+
+        // Check for duplicate requests using file size + current user + time window
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
+        
+        // Create unique request ID based on user ID, file size, and 10-second time window
+        long timeWindow = System.currentTimeMillis() / 10000; // 10-second windows
+        String requestId = currentUser.getId() + "_" + receiptImage.getSize() + "_" + timeWindow;
+        
+        if (recentUploads.contains(requestId)) {
+            log.warn("Duplicate upload request blocked for user: {}, request ID: {}, file size: {} bytes", 
+                    currentUser.getId(), requestId, receiptImage.getSize());
+            return Mono.just(ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build());
+        }
+        
+        // Add request ID to prevent duplicates
+        recentUploads.add(requestId);
+        
+        // Clean up old entries periodically (keep memory usage reasonable)
+        if (recentUploads.size() > 1000) {
+            log.debug("Cleaning up old upload request IDs");
+            recentUploads.clear();
+        }
 
         // Validate file
         if (receiptImage.isEmpty()) {
+            recentUploads.remove(requestId); // Remove from tracking since it failed
             return Mono.just(ResponseEntity.badRequest().build());
         }
 
@@ -50,30 +88,40 @@ public class FuelRecordController {
         String contentType = receiptImage.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             log.warn("Invalid file type received: {}", contentType);
+            recentUploads.remove(requestId); // Remove from tracking since it failed
             return Mono.just(ResponseEntity.badRequest().build());
         }
 
         // Validate file size (max 10MB)
         if (receiptImage.getSize() > 10 * 1024 * 1024) {
             log.warn("File size too large: {} bytes", receiptImage.getSize());
+            recentUploads.remove(requestId); // Remove from tracking since it failed
             return Mono.just(ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).build());
         }
 
-        User currentUser = getCurrentUser();
-        if (currentUser == null) {
-            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-        }
-
         // Create request object
-        FuelReceiptUploadRequest request = new FuelReceiptUploadRequest();
-        request.setReceiptImage(receiptImage);
-        request.setStationName(stationName);
-        request.setLocation(location);
-        request.setPurchaseDate(purchaseDate);
+        FuelReceiptUploadRequest uploadRequest = new FuelReceiptUploadRequest();
+        uploadRequest.setReceiptImage(receiptImage);
+        uploadRequest.setStationName(stationName);
+        uploadRequest.setLocation(location);
+        uploadRequest.setPurchaseDate(purchaseDate);
 
-        return fuelRecordService.processReceiptUpload(request, currentUser)
+        return fuelRecordService.processReceiptUpload(uploadRequest, currentUser)
                 .map(response -> ResponseEntity.ok(response))
                 .onErrorReturn(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+    }
+
+    // Test endpoint to validate JWT authentication
+    @GetMapping("/auth-test")
+    public ResponseEntity<String> testAuthentication() {
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Authentication failed - no user found");
+        }
+        
+        return ResponseEntity.ok("Authentication successful for user: " + currentUser.getEmail() + 
+                                " (ID: " + currentUser.getId() + ")");
     }
 
     @GetMapping
@@ -123,12 +171,18 @@ public class FuelRecordController {
 
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || authentication.getName() == null) {
+        if (authentication == null || authentication.getPrincipal() == null) {
             log.warn("No authenticated user found");
             return null;
         }
 
-        String email = authentication.getName();
-        return userService.findByEmail(email).orElse(null);
+        // Get the User object directly from the authentication principal
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof User) {
+            return (User) principal;
+        }
+
+        log.warn("Authentication principal is not a User object: {}", principal.getClass());
+        return null;
     }
 }
