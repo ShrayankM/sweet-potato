@@ -89,6 +89,14 @@ public class DynamicConfigurationProperties {
     }
     
     /**
+     * Gets AWS S3 bucket name for fuel brand logos
+     */
+    public String getAwsFuelLogosBucketName() {
+        AppConfiguration config = configurationLoaderService.getConfiguration();
+        return config != null && config.getAws() != null ? config.getAws().getFuelLogosBucketName() : "fuel-company-logos";
+    }
+    
+    /**
      * Gets Mistral API URL
      */
     public String getMistralApiUrl() {

@@ -4,8 +4,8 @@ import { logout } from '../slices/authSlice';
 
 // Use the computer's local IP instead of localhost for mobile simulator/device
 const BASE_URL = __DEV__ 
-  ? 'http://192.168.1.7:8081/api/fuel-records'   // Use your computer's IP for development
-  : 'http://localhost:8081/api/fuel-records';     // Use localhost for production
+  ? 'http://192.168.1.7:8082/api/fuel-records'   // Use your computer's IP for development
+  : 'http://localhost:8082/api/fuel-records';     // Use localhost for production
 
 // ---------------- Interfaces ----------------
 export interface FuelReceiptResponse {
@@ -20,6 +20,7 @@ export interface FuelReceiptResponse {
   location?: string;
   purchaseDate?: string;
   createdAt: string;
+  brandLogoUrl?: string;
   ocrProcessed: boolean;
   ocrConfidence?: number;
   rawOcrData?: string;

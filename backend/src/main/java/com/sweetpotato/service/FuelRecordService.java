@@ -32,6 +32,7 @@ public class FuelRecordService {
     private final FuelRecordRepository fuelRecordRepository;
     private final S3UploadService s3UploadService;
     private final MistralOcrService mistralOcrService;
+    private final FuelBrandLogoService fuelBrandLogoService;
     private final ObjectMapper objectMapper;
 
     public Mono<FuelReceiptResponse> processReceiptUpload(FuelReceiptUploadRequest request, User user) {
@@ -184,6 +185,12 @@ public class FuelRecordService {
     }
 
     private FuelReceiptResponse mapToResponse(FuelRecord fuelRecord, ExtractedFuelData extractedData) {
+        // Get the brand logo URL based on station name and brand
+        String brandLogoUrl = fuelBrandLogoService.getBrandLogoUrl(
+            fuelRecord.getStationName(), 
+            fuelRecord.getStationBrand()
+        );
+        
         return FuelReceiptResponse.builder()
                 .id(fuelRecord.getId())
                 .stationName(fuelRecord.getStationName())
@@ -196,6 +203,7 @@ public class FuelRecordService {
                 .location(fuelRecord.getLocation())
                 .purchaseDate(fuelRecord.getPurchaseDate())
                 .createdAt(fuelRecord.getCreatedAt())
+                .brandLogoUrl(brandLogoUrl)
                 .ocrProcessed(extractedData != null)
                 .ocrConfidence(extractedData != null && extractedData.getConfidence() != null ? 
                     extractedData.getConfidence().toString() : null)

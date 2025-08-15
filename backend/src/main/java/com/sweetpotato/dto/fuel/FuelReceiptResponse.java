@@ -30,4 +30,7 @@ public class FuelReceiptResponse {
     private boolean ocrProcessed;
     private String ocrConfidence;
     private String rawOcrData;
+    
+    // Brand logo URL
+    private String brandLogoUrl;
 }

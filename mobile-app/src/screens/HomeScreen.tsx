@@ -7,6 +7,7 @@ import {
   FlatList,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -116,19 +117,47 @@ export default function HomeScreen() {
 
     const fuelTypeColors = getFuelTypeColors(item.fuelType);
 
+    // Debug logging for brand logo
+    console.log('🏠 HomeScreen Fuel Record:', {
+      id: item.id,
+      stationName: item.stationName,
+      stationBrand: item.stationBrand,
+      brandLogoUrl: item.brandLogoUrl,
+      hasBrandLogo: !!item.brandLogoUrl
+    });
+
     return (
       <View style={styles.recordCard}>
-        {/* Station Brand Image Placeholder */}
-        <View style={styles.stationImagePlaceholder}>
-          <Ionicons name="business-outline" size={24} color="#9CA3AF" />
+        {/* Station Brand Logo */}
+        <View style={styles.stationImageContainer}>
+          {item.brandLogoUrl ? (
+            <Image
+              source={{ uri: item.brandLogoUrl }}
+              style={styles.stationBrandLogo}
+              resizeMode="contain"
+              onLoad={() => console.log('✅ HomeScreen: Brand logo loaded:', item.brandLogoUrl)}
+              onError={(error) => console.log('❌ HomeScreen: Logo failed to load:', item.brandLogoUrl, error)}
+            />
+          ) : (
+            <View style={styles.stationImagePlaceholder}>
+              <Ionicons name="business-outline" size={24} color="#9CA3AF" />
+            </View>
+          )}
         </View>
         
         {/* Record Content */}
         <View style={styles.recordContent}>
           <View style={styles.recordHeader}>
-            <Text style={styles.stationName}>
-              {item.stationBrand || 'Gas Station'}
-            </Text>
+            <View style={styles.stationInfo}>
+              <Text style={styles.stationName}>
+                {item.stationName || item.stationBrand || 'Gas Station'}
+              </Text>
+              {item.stationBrand && item.stationName !== item.stationBrand && (
+                <Text style={styles.stationBrand}>
+                  {item.stationBrand}
+                </Text>
+              )}
+            </View>
             <Text style={styles.amount}>
               ₹{(item.amount || 0).toFixed(2)}
             </Text>
@@ -384,6 +413,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
+  stationImageContainer: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   stationImagePlaceholder: {
     width: 48,
     height: 48,
@@ -391,7 +427,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+  },
+  stationBrandLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
   },
   recordContent: {
     flex: 1,
@@ -399,13 +440,23 @@ const styles = StyleSheet.create({
   recordHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 6,
+  },
+  stationInfo: {
+    flex: 1,
   },
   stationName: {
     fontSize: 16,
     fontWeight: '700',
     color: '#2c3e50',
+    marginBottom: 2,
+  },
+  stationBrand: {
+    fontSize: 12,
+    color: '#60A5FA',
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   amount: {
     fontSize: 16,

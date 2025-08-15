@@ -164,6 +164,7 @@ public class DynamoDbConfigService {
                 .secretKey(getConfigValue(configs, "aws.secret.key"))
                 .region(getConfigValue(configs, "aws.region", "ap-south-1"))
                 .bucketName(getConfigValue(configs, "aws.s3.bucket.name", "sweet-potato-receipts"))
+                .fuelLogosBucketName(getConfigValue(configs, "aws.s3.fuel.logos.bucket.name", "fuel-company-logos"))
                 .build();
     }
     

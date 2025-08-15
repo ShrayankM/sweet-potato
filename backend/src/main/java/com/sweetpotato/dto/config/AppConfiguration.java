@@ -37,6 +37,7 @@ public class AppConfiguration {
         private String secretKey;
         private String region;
         private String bucketName;
+        private String fuelLogosBucketName;
     }
     
     @Data

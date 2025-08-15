@@ -86,7 +86,16 @@ export default function FuelHistoryScreen() {
     }
   };
 
-  const renderFuelRecord = ({ item }: { item: FuelReceiptResponse }) => (
+  const renderFuelRecord = ({ item }: { item: FuelReceiptResponse }) => {
+    // Debug: Log fuel record data
+    console.log('🔍 Fuel Record Debug:', {
+      id: item.id, 
+      stationName: item.stationName,
+      brandLogoUrl: item.brandLogoUrl,
+      hasBrandLogoUrl: !!item.brandLogoUrl
+    });
+    
+    return (
     <View style={styles.recordCard}>
       <View style={styles.recordHeader}>
         <View style={styles.recordInfo}>
@@ -167,7 +176,8 @@ export default function FuelHistoryScreen() {
         </TouchableOpacity>
       )}
     </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -207,7 +217,7 @@ export default function FuelHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  rer: {
     flex: 1,
     backgroundColor: '#f8faff',
   },
