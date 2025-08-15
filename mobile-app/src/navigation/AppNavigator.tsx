@@ -14,21 +14,20 @@ const Stack = createNativeStackNavigator<AppStackParamList>();
 
 export default function AppNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen 
         name="Home" 
-        component={HomeScreen} 
-        options={{ title: 'Fuel Records' }}
+        component={HomeScreen}
       />
       <Stack.Screen 
         name="Profile" 
         component={ProfileScreen} 
-        options={{ title: 'Profile' }}
+        options={{ headerShown: true, title: 'Profile' }}
       />
       <Stack.Screen 
         name="FuelRecord" 
         component={FuelRecordScreen} 
-        options={{ title: 'Add Fuel Record' }}
+        options={{ headerShown: true, title: 'Add Fuel Record' }}
       />
     </Stack.Navigator>
   );

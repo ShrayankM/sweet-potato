@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch } from '../store/hooks';
 import { logout } from '../store/slices/authSlice';
@@ -170,12 +171,17 @@ export default function FuelHistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#E5E7EB', '#D1D5DB']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <Text style={styles.headerTitle}>Fuel Records</Text>
         <Text style={styles.headerSubtitle}>
           {fuelRecords?.totalElements || 0} total records
         </Text>
-      </View>
+      </LinearGradient>
 
       <FlatList
         data={fuelRecords?.content || []}
@@ -203,23 +209,23 @@ export default function FuelHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8faff',
   },
   header: {
     padding: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingTop: 60,
+    paddingBottom: 30,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1F2937',
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: 16,
+    color: '#374151',
+    marginTop: 8,
+    fontWeight: '500',
   },
   listContainer: {
     padding: 16,
@@ -228,32 +234,35 @@ const styles = StyleSheet.create({
   recordCard: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: '#6B7280',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: '#60A5FA',
   },
   recordHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   recordInfo: {
     flex: 1,
   },
   stationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 2,
   },
   recordDate: {
     fontSize: 14,
-    color: '#666',
+    color: '#7f8c8d',
+    fontWeight: '500',
   },
   recordActions: {
     flexDirection: 'row',
@@ -271,23 +280,24 @@ const styles = StyleSheet.create({
   recordDetails: {
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-    paddingTop: 12,
+    paddingTop: 8,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   detailLabel: {
     fontSize: 14,
-    color: '#666',
+    color: '#7f8c8d',
     flex: 1,
+    fontWeight: '500',
   },
   detailValue: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: '600',
+    color: '#2c3e50',
     flex: 1,
     textAlign: 'right',
   },
@@ -327,16 +337,17 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#2c3e50',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#7f8c8d',
     textAlign: 'center',
     lineHeight: 20,
+    paddingHorizontal: 20,
   },
   fuelTypeContainer: {
     alignItems: 'flex-end',

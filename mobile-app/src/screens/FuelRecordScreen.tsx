@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -122,7 +123,7 @@ export default function FuelRecordScreen() {
         const extractedInfo = [];
         if (result.stationName) extractedInfo.push(`Station: ${result.stationName}`);
         if (result.amount) extractedInfo.push(`Amount: $${result.amount}`);
-        if (result.gallons) extractedInfo.push(`Gallons: ${result.gallons}`);
+        if (result.liters) extractedInfo.push(`Liters: ${result.liters}`);
         if (result.location) extractedInfo.push(`Location: ${result.location}`);
         
         Alert.alert(
@@ -185,11 +186,19 @@ export default function FuelRecordScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
+      <LinearGradient
+        colors={['#E5E7EB', '#D1D5DB']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <Text style={styles.title}>Upload Fuel Receipt</Text>
         <Text style={styles.subtitle}>
           Take a photo or select an image of your fuel receipt. Our system will automatically extract the fuel data.
         </Text>
+      </LinearGradient>
+      
+      <View style={styles.content}>
         
         <TouchableOpacity 
           style={[styles.imageButton, isProcessing && styles.imageButtonProcessing]} 
@@ -232,7 +241,7 @@ export default function FuelRecordScreen() {
             <Text style={styles.resultTitle}>✅ Upload Successful!</Text>
             {uploadResult.stationName && <Text style={styles.resultText}>Station: {uploadResult.stationName}</Text>}
             {uploadResult.amount && <Text style={styles.resultText}>Amount: ${uploadResult.amount}</Text>}
-            {uploadResult.gallons && <Text style={styles.resultText}>Gallons: {uploadResult.gallons}</Text>}
+            {uploadResult.liters && <Text style={styles.resultText}>Liters: {uploadResult.liters}</Text>}
             {uploadResult.location && <Text style={styles.resultText}>Location: {uploadResult.location}</Text>}
           </View>
         )}
@@ -274,49 +283,60 @@ export default function FuelRecordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f8faff',
+  },
+  header: {
+    padding: 20,
+    paddingTop: 60,
+    paddingBottom: 30,
   },
   content: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 40,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     textAlign: 'center',
     marginBottom: 12,
-    color: '#1a1a1a',
+    color: '#1F2937',
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 32,
-    color: '#666',
+    color: '#374151',
     lineHeight: 22,
+    fontWeight: '500',
   },
   imageButton: {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#007AFF',
+    borderColor: '#60A5FA',
     borderStyle: 'dashed',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 40,
     marginBottom: 24,
-    backgroundColor: '#f8f9ff',
+    backgroundColor: 'white',
     minHeight: 160,
+    shadowColor: '#60A5FA',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   imageButtonText: {
     marginTop: 12,
     fontSize: 18,
-    color: '#007AFF',
-    fontWeight: '600',
+    color: '#60A5FA',
+    fontWeight: '700',
     textAlign: 'center',
   },
   imageButtonSelected: {
-    color: '#4CAF50',
+    color: '#374151',
   },
   imageButtonProcessing: {
     opacity: 0.7,

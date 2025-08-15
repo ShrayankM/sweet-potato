@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
@@ -78,6 +79,16 @@ export default function HomeScreen() {
     };
   }, [fuelRecords, fuelRecordsData?.totalElements]);
 
+  // Helper function to format user name
+  const formatUserName = (name: string | undefined) => {
+    if (!name) return 'User';
+    // Capitalize first letter of each word
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const getFuelTypeColors = (fuelType: string) => {
     switch (fuelType?.toLowerCase()) {
       case 'petrol':
@@ -142,32 +153,76 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hello, {user?.userName}!</Text>
-          <Text style={styles.subtitle}>Track your fuel expenses</Text>
+      <LinearGradient
+        colors={['#E5E7EB', '#D1D5DB']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.greeting}>Hello, {formatUserName(user?.userName)}!</Text>
+            <Text style={styles.subtitle}>Track your fuel expenses</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Ionicons name="person-circle-outline" size={32} color="#1F2937" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={styles.profileButton}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Ionicons name="person-circle-outline" size={32} color="#007AFF" />
-        </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
+        <LinearGradient
+          colors={['#DBEAFE', '#BFDBFE']}
+          style={[styles.statCard, styles.recordsCard]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Ionicons name="document-text-outline" size={24} color="#1F2937" />
           <Text style={styles.statNumber}>{stats.records}</Text>
           <Text style={styles.statLabel}>Records</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>₹{stats.totalSpent.toFixed(2)}</Text>
+        </LinearGradient>
+        <LinearGradient
+          colors={['#D1FAE5', '#A7F3D0']}
+          style={[styles.statCard, styles.spentCard]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Ionicons name="wallet-outline" size={24} color="#1F2937" />
+          <Text style={styles.statNumber} numberOfLines={1} adjustsFontSizeToFit={true}>₹{stats.totalSpent.toFixed(2)}</Text>
           <Text style={styles.statLabel}>Total Spent</Text>
-        </View>
-        <View style={styles.statCard}>
+        </LinearGradient>
+        <LinearGradient
+          colors={['#FEF3C7', '#FDE68A']}
+          style={[styles.statCard, styles.litersCard]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Ionicons name="speedometer-outline" size={24} color="#1F2937" />
           <Text style={styles.statNumber}>{stats.totalLiters.toFixed(1)}</Text>
           <Text style={styles.statLabel}>Total Liters</Text>
-        </View>
+        </LinearGradient>
+      </View>
+
+      {/* Upload Receipt Button */}
+      <View style={styles.uploadSection}>
+        <TouchableOpacity 
+          style={styles.uploadReceiptButton}
+          onPress={() => navigation.navigate('FuelRecord')}
+        >
+          <LinearGradient
+            colors={['#60A5FA', '#3B82F6']}
+            style={styles.uploadReceiptGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="camera" size={24} color="white" />
+            <Text style={styles.uploadReceiptText}>Upload Fuel Receipt</Text>
+            <Ionicons name="chevron-forward" size={20} color="white" />
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.recordsSection}>
@@ -193,6 +248,12 @@ export default function HomeScreen() {
             <Ionicons name="receipt-outline" size={48} color="#8E8E93" />
             <Text style={styles.emptyText}>No fuel records yet</Text>
             <Text style={styles.emptySubText}>Start by uploading your first receipt</Text>
+            <TouchableOpacity 
+              style={styles.emptyUploadButton}
+              onPress={() => navigation.navigate('FuelRecord')}
+            >
+              <Text style={styles.emptyUploadButtonText}>📸 Upload Receipt</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
@@ -205,13 +266,6 @@ export default function HomeScreen() {
           />
         )}
       </View>
-
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => navigation.navigate('FuelRecord')}
-      >
-        <Ionicons name="add" size={28} color="white" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -219,95 +273,124 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8faff',
   },
   header: {
+    padding: 20,
+    paddingTop: 60,
+    paddingBottom: 30,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'white',
-    paddingTop: 60,
   },
   greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1F2937',
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#374151',
     marginTop: 5,
+    fontWeight: '500',
   },
   profileButton: {
-    padding: 5,
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 25,
+    shadowColor: '#1F2937',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: 10,
+    marginTop: -20,
   },
   statCard: {
-    backgroundColor: 'white',
     padding: 20,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     flex: 1,
-    marginHorizontal: 5,
+    marginHorizontal: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    minHeight: 110,
+    justifyContent: 'center',
+  },
+  recordsCard: {
+    // Red gradient card styles
+  },
+  spentCard: {
+    // Green gradient card styles
+  },
+  litersCard: {
+    // Yellow gradient card styles
   },
   statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1F2937',
+    marginTop: 8,
+    minWidth: 50,
+    textAlign: 'center',
   },
   statLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
+    fontSize: 12,
+    color: '#374151',
+    marginTop: 4,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   recordsSection: {
     flex: 1,
     padding: 20,
-    paddingTop: 10,
+    paddingTop: 30,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#2c3e50',
+    marginBottom: 20,
+    textAlign: 'left',
   },
   recordCard: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: 12,
     borderRadius: 12,
-    marginBottom: 15,
-    shadowColor: '#000',
+    marginBottom: 8,
+    shadowColor: '#6B7280',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: '#60A5FA',
   },
   recordHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   stationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2c3e50',
   },
   amount: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#60A5FA',
   },
   recordDetails: {
     flexDirection: 'row',
@@ -315,14 +398,16 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 14,
-    color: '#666',
+    color: '#7f8c8d',
+    fontWeight: '500',
   },
   liters: {
     fontSize: 14,
-    color: '#666',
+    color: '#7f8c8d',
+    fontWeight: '500',
   },
   fuelTypeContainer: {
-    marginTop: 8,
+    marginTop: 4,
     alignItems: 'flex-start',
   },
   fuelType: {
@@ -333,21 +418,50 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     overflow: 'hidden',
   },
-  addButton: {
-    position: 'absolute',
-    bottom: 30,
-    right: 30,
-    backgroundColor: '#007AFF',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+  uploadSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  uploadReceiptButton: {
+    shadowColor: '#60A5FA',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 6,
+  },
+  uploadReceiptGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+  },
+  uploadReceiptText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
+    marginHorizontal: 12,
+    flex: 1,
+    textAlign: 'center',
+  },
+  emptyUploadButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#60A5FA',
+    borderRadius: 12,
+    shadowColor: '#60A5FA',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  emptyUploadButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -358,8 +472,9 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 15,
     fontSize: 16,
-    color: '#666',
+    color: '#7f8c8d',
     textAlign: 'center',
+    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
@@ -370,21 +485,21 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 15,
     fontSize: 18,
-    fontWeight: '600',
-    color: '#FF3B30',
+    fontWeight: '700',
+    color: '#e74c3c',
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 20,
-    backgroundColor: '#007AFF',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: '#6B7280',
   },
   retryButtonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   emptyContainer: {
     flex: 1,
@@ -395,14 +510,15 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 15,
     fontSize: 18,
-    fontWeight: '600',
-    color: '#8E8E93',
+    fontWeight: '700',
+    color: '#7f8c8d',
     textAlign: 'center',
   },
   emptySubText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#95a5a6',
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });
