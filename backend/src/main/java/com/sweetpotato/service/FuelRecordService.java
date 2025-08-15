@@ -48,6 +48,9 @@ public class FuelRecordService {
                     if (request.getStationName() != null) {
                         fuelRecord.setStationName(request.getStationName());
                     }
+                    if (request.getStationBrand() != null) {
+                        fuelRecord.setStationBrand(request.getStationBrand());
+                    }
                     if (request.getLocation() != null) {
                         fuelRecord.setLocation(request.getLocation());
                     }
@@ -73,11 +76,22 @@ public class FuelRecordService {
                     .doOnError(ocrError -> {
                         log.error("OCR processing failed, but image was uploaded: {}", imageUrl, ocrError);
                         // Don't delete the image, user can still manually enter data
-                    });
+                    })
+                    .timeout(java.time.Duration.ofSeconds(15)) // Add timeout to OCR processing
+                    .onErrorReturn(new ProcessingResult(imageUrl, createEmptyExtractedData())); // Fallback on any error
+
         } catch (IOException e) {
             log.error("Failed to upload image to S3", e);
-            return Mono.error(new RuntimeException("Failed to upload receipt image", e));
+            // Instead of erroring, return empty data and let user manually enter
+            return Mono.just(new ProcessingResult("", createEmptyExtractedData()));
         }
+    }
+
+    private ExtractedFuelData createEmptyExtractedData() {
+        ExtractedFuelData emptyData = new ExtractedFuelData();
+        // Set default/empty values - user can manually fill these in
+        log.info("Creating empty extracted data for manual entry");
+        return emptyData;
     }
 
     private FuelRecord createFuelRecordFromExtractedData(ExtractedFuelData extractedData, User user, String imageUrl) {
@@ -88,6 +102,7 @@ public class FuelRecordService {
         if (extractedData != null) {
             builder
                 .stationName(extractedData.getStationName())
+                .stationBrand(extractedData.getStationBrand())
                 .amount(extractedData.getTotalAmount())
                 .liters(extractedData.getLiters())
                 .pricePerLiter(extractedData.getPricePerLiter())
@@ -144,9 +159,10 @@ public class FuelRecordService {
         return FuelReceiptResponse.builder()
                 .id(fuelRecord.getId())
                 .stationName(fuelRecord.getStationName())
+                .stationBrand(fuelRecord.getStationBrand())
                 .amount(fuelRecord.getAmount())
-                .gallons(fuelRecord.getLiters())
-                .pricePerGallon(fuelRecord.getPricePerLiter())
+                .liters(fuelRecord.getLiters())
+                .pricePerLiter(fuelRecord.getPricePerLiter())
                 .receiptImageUrl(fuelRecord.getReceiptImageUrl())
                 .location(fuelRecord.getLocation())
                 .purchaseDate(fuelRecord.getPurchaseDate())

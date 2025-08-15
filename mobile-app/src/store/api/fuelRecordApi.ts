@@ -1,15 +1,20 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import * as SecureStore from 'expo-secure-store';
+import { logout } from '../slices/authSlice';
 
-const BASE_URL = 'http://192.168.0.102:8081/api/fuel-records';
+// Use the computer's local IP instead of localhost for mobile simulator/device
+const BASE_URL = __DEV__ 
+  ? 'http://192.168.1.7:8081/api/fuel-records'   // Use your computer's IP for development
+  : 'http://localhost:8081/api/fuel-records';     // Use localhost for production
 
 // ---------------- Interfaces ----------------
 export interface FuelReceiptResponse {
   id: number;
   stationName?: string;
+  stationBrand?: string;
   amount?: number;
-  gallons?: number;
-  pricePerGallon?: number;
+  liters?: number;
+  pricePerLiter?: number;
   receiptImageUrl?: string;
   location?: string;
   purchaseDate?: string;
@@ -32,53 +37,60 @@ export const fuelRecordApi = createApi({
   reducerPath: 'fuelRecordApi',
   baseQuery: fetchBaseQuery({
     baseUrl: BASE_URL,
-    timeout: 120000,
+    timeout: 25000, // Reduced timeout to 25 seconds for faster failure detection
     prepareHeaders: async (headers, { endpoint }) => {
       console.log('RTK Query - prepareHeaders called for endpoint:', endpoint);
-
-      // TEMPORARY: Skip authentication for upload-receipt endpoint
-      // if (endpoint === 'uploadReceipt') {
-      //   console.log('RTK Query - TEMPORARY: Skipping authentication for uploadReceipt endpoint');
-      //   return headers;
-      // }
+      
+      // DON'T set Content-Type for file uploads - let the browser set it automatically
+      if (endpoint !== 'uploadReceipt') {
+        headers.set('Content-Type', 'application/json');
+        headers.set('Accept', 'application/json');
+      } else {
+        // For file uploads, only set Accept header, let browser handle Content-Type
+        headers.set('Accept', 'application/json');
+        console.log('RTK Query - Skipping Content-Type for file upload');
+      }
 
       try {
         // Get authentication token
         const token = await SecureStore.getItemAsync('access_token');
-        if (!token) {
-          console.error('RTK Query - No token found for', endpoint);
-          return headers; // Return headers without auth, let backend handle the 401
+        if (token) {
+          headers.set('authorization', `Bearer ${token}`);
+          console.log('RTK Query - Token added for', endpoint);
+        } else {
+          console.warn('RTK Query - No token found for', endpoint);
         }
-
-        headers.set('authorization', `Bearer ${token}`);
-
-        // Validate token structure (but don't throw errors)
-        try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            const payload = JSON.parse(atob(parts[1]));
-            const now = Math.floor(Date.now() / 1000);
-            if (now > payload.exp) {
-              console.warn('RTK Query - Token appears expired for', endpoint, 'but proceeding with request');
-              // Don't throw error, let the backend handle token expiry
-            } else {
-              console.log('RTK Query - Token is valid for', endpoint);
-            }
-          } else {
-            console.warn('RTK Query - Invalid JWT format for', endpoint, 'but proceeding');
-          }
-        } catch (err) {
-          console.warn('RTK Query - Could not parse token for', endpoint, err, 'but proceeding');
-        }
-
       } catch (error) {
-        console.error('RTK Query - Error in prepareHeaders for', endpoint, error);
-        // Don't throw, just proceed without auth header
+        console.error('RTK Query - Error getting token for', endpoint, error);
       }
 
+      console.log('RTK Query - Headers prepared for', endpoint, ':', [...headers.entries()]);
       return headers;
     },
-
+    fetchFn: async (...args) => {
+      console.log('RTK Query - Making fetch request to:', args[0]);
+      try {
+        const response = await fetch(...args);
+        console.log('RTK Query - Fetch response status:', response.status);
+        
+        // Handle authentication errors
+        if (response.status === 401 || response.status === 403) {
+          console.error('RTK Query - Authentication error, clearing stored credentials');
+          // Clear stored credentials
+          await SecureStore.deleteItemAsync('access_token');
+          await SecureStore.deleteItemAsync('refresh_token');
+          await SecureStore.deleteItemAsync('user_data');
+          
+          // Note: We can't dispatch logout here directly because we don't have access to dispatch
+          // The component will need to handle this error and dispatch logout
+        }
+        
+        return response;
+      } catch (error) {
+        console.error('RTK Query - Fetch error:', error);
+        throw error;
+      }
+    },
   }),
   tagTypes: ['FuelRecord'],
   endpoints: (builder) => ({
@@ -97,7 +109,7 @@ export const fuelRecordApi = createApi({
           url: '/upload-receipt',
           method: 'POST',
           body: formData,
-          headers: { 'Content-Type': 'multipart/form-data' },
+          // Don't set Content-Type manually - let the browser set it with boundary
         };
       },
       transformResponse: (response: FuelReceiptResponse) => {
@@ -114,10 +126,21 @@ export const fuelRecordApi = createApi({
       number: number;
       size: number;
     }, { page?: number; size?: number }>({
-      query: ({ page = 0, size = 20 } = {}) => ({
-        url: `?page=${page}&size=${size}`,
-        method: 'GET',
-      }),
+      query: ({ page = 0, size = 20 } = {}) => {
+        console.log('RTK Query - Making getFuelRecords request with params:', { page, size });
+        return {
+          url: `?page=${page}&size=${size}`,
+          method: 'GET',
+        };
+      },
+      transformResponse: (response: any) => {
+        console.log('RTK Query - getFuelRecords response received:', response);
+        return response;
+      },
+      transformErrorResponse: (response: any) => {
+        console.error('RTK Query - getFuelRecords error:', response);
+        return response;
+      },
       providesTags: ['FuelRecord'],
     }),
 

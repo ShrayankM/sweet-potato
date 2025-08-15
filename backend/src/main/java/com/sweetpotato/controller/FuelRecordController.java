@@ -40,6 +40,7 @@ public class FuelRecordController {
     public ResponseEntity<FuelReceiptResponse> uploadReceipt(
             @RequestPart("receiptImage") MultipartFile receiptImage,
             @RequestPart(value = "stationName", required = false) String stationName,
+            @RequestPart(value = "stationBrand", required = false) String stationBrand,
             @RequestPart(value = "location", required = false) String location,
             @RequestPart(value = "purchaseDate", required = false) String purchaseDate,
             HttpServletRequest request) {
@@ -106,6 +107,7 @@ public class FuelRecordController {
         FuelReceiptUploadRequest uploadRequest = new FuelReceiptUploadRequest();
         uploadRequest.setReceiptImage(receiptImage);
         uploadRequest.setStationName(stationName);
+        uploadRequest.setStationBrand(stationBrand);
         uploadRequest.setLocation(location);
         uploadRequest.setPurchaseDate(purchaseDate);
 
@@ -114,7 +116,7 @@ public class FuelRecordController {
         try {
             // Convert reactive to synchronous with timeout
             FuelReceiptResponse result = fuelRecordService.processReceiptUpload(uploadRequest, currentUser)
-                    .block(Duration.ofSeconds(45)); // Wait max 45 seconds
+                    .block(Duration.ofSeconds(20)); // Reduced timeout to 20 seconds
             
             if (result != null) {
                 log.info("✅ SUCCESS - Got result: ID={}, Amount={}", result.getId(), result.getAmount());

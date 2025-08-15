@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { useAppSelector } from '../store/hooks';
+import { useAppSelector, useAppDispatch } from '../store/hooks';
+import { logout } from '../store/slices/authSlice';
 import { AppStackParamList } from '../navigation/AppNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { useGetFuelRecordsQuery } from '../store/api/fuelRecordApi';
@@ -20,14 +21,47 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<AppStackParamList, 'Ho
 export default function HomeScreen() {
   const { user } = useAppSelector(state => state.auth);
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const dispatch = useAppDispatch();
   
   // Fetch fuel records using RTK Query
   const { 
     data: fuelRecordsData, 
     error, 
     isLoading, 
-    refetch 
+    refetch,
+    isFetching,
+    status 
   } = useGetFuelRecordsQuery({ page: 0, size: 10 });
+
+  // Debug logging and error handling
+  React.useEffect(() => {
+    console.log('HomeScreen - Query status:', { 
+      status, 
+      isLoading, 
+      isFetching, 
+      hasData: !!fuelRecordsData, 
+      hasError: !!error 
+    });
+    
+    if (error) {
+      console.error('HomeScreen - Query error:', error);
+      
+      // Check if it's an authentication error
+      if ('status' in error && (error.status === 401 || error.status === 403)) {
+        console.log('HomeScreen - Authentication error detected, logging out user');
+        Alert.alert(
+          'Session Expired', 
+          'Please log in again to continue.',
+          [
+            {
+              text: 'OK',
+              onPress: () => dispatch(logout())
+            }
+          ]
+        );
+      }
+    }
+  }, [status, isLoading, isFetching, fuelRecordsData, error, dispatch]);
 
   const fuelRecords = fuelRecordsData?.content || [];
   
@@ -35,12 +69,12 @@ export default function HomeScreen() {
   const stats = React.useMemo(() => {
     const totalRecords = fuelRecordsData?.totalElements || 0;
     const totalAmount = fuelRecords.reduce((sum, record) => sum + (record.amount || 0), 0);
-    const totalGallons = fuelRecords.reduce((sum, record) => sum + (record.gallons || 0), 0);
+    const totalLiters = fuelRecords.reduce((sum, record) => sum + (record.liters || 0), 0);
     
     return {
       records: totalRecords,
       totalSpent: totalAmount,
-      totalGallons: totalGallons,
+      totalLiters: totalLiters,
     };
   }, [fuelRecords, fuelRecordsData?.totalElements]);
 
@@ -58,18 +92,18 @@ export default function HomeScreen() {
       <View style={styles.recordCard}>
         <View style={styles.recordHeader}>
           <Text style={styles.stationName}>
-            {item.stationName || 'Gas Station'}
+            {item.stationBrand || 'Gas Station'}
           </Text>
           <Text style={styles.amount}>
-            ${(item.amount || 0).toFixed(2)}
+            ₹{(item.amount || 0).toFixed(2)}
           </Text>
         </View>
         <View style={styles.recordDetails}>
           <Text style={styles.date}>
             {item.purchaseDate ? formatDate(item.purchaseDate) : formatDate(item.createdAt)}
           </Text>
-          <Text style={styles.gallons}>
-            {(item.gallons || 0).toFixed(1)} gallons
+          <Text style={styles.liters}>
+            {(item.liters || 0).toFixed(1)} liters
           </Text>
         </View>
       </View>
@@ -80,7 +114,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Hello, {user?.firstName}!</Text>
+          <Text style={styles.greeting}>Hello, {user?.userName}!</Text>
           <Text style={styles.subtitle}>Track your fuel expenses</Text>
         </View>
         <TouchableOpacity 
@@ -97,12 +131,12 @@ export default function HomeScreen() {
           <Text style={styles.statLabel}>Records</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>${stats.totalSpent.toFixed(2)}</Text>
+          <Text style={styles.statNumber}>₹{stats.totalSpent.toFixed(2)}</Text>
           <Text style={styles.statLabel}>Total Spent</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.totalGallons.toFixed(1)}</Text>
-          <Text style={styles.statLabel}>Total Gallons</Text>
+          <Text style={styles.statNumber}>{stats.totalLiters.toFixed(1)}</Text>
+          <Text style={styles.statLabel}>Total Liters</Text>
         </View>
       </View>
 
@@ -253,7 +287,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  gallons: {
+  liters: {
     fontSize: 14,
     color: '#666',
   },

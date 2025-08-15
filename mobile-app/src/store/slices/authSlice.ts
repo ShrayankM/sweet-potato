@@ -40,9 +40,10 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.error = null;
       
-      // Clear stored tokens
+      // Clear stored tokens and user data
       SecureStore.deleteItemAsync('access_token');
       SecureStore.deleteItemAsync('refresh_token');
+      SecureStore.deleteItemAsync('user_data');
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;

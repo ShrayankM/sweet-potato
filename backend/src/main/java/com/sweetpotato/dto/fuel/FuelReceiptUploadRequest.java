@@ -13,6 +13,7 @@ public class FuelReceiptUploadRequest {
     
     // Optional fields that user can provide if they want to override OCR results
     private String stationName;
+    private String stationBrand;
     private String location;
     private String purchaseDate; // ISO format expected
 }

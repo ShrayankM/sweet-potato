@@ -31,6 +31,9 @@ public class FuelRecord {
     @Column(name = "station_name")
     private String stationName;
 
+    @Column(name = "station_brand")
+    private String stationBrand;
+
     @Column(name = "amount", precision = 10, scale = 2)
     @Positive(message = "Amount must be positive")
     private BigDecimal amount;

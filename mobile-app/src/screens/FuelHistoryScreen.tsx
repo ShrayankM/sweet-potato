@@ -10,11 +10,31 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppDispatch } from '../store/hooks';
+import { logout } from '../store/slices/authSlice';
 import { useGetFuelRecordsQuery, useDeleteFuelRecordMutation, FuelReceiptResponse } from '../store/api/fuelRecordApi';
 
 export default function FuelHistoryScreen() {
-  const { data: fuelRecords, isLoading, refetch } = useGetFuelRecordsQuery({ page: 0, size: 50 });
+  const dispatch = useAppDispatch();
+  const { data: fuelRecords, isLoading, error, refetch } = useGetFuelRecordsQuery({ page: 0, size: 50 });
   const [deleteRecord] = useDeleteFuelRecordMutation();
+
+  // Handle authentication errors
+  React.useEffect(() => {
+    if (error && 'status' in error && (error.status === 401 || error.status === 403)) {
+      console.log('FuelHistoryScreen - Authentication error detected, logging out user');
+      Alert.alert(
+        'Session Expired', 
+        'Please log in again to continue.',
+        [
+          {
+            text: 'OK',
+            onPress: () => dispatch(logout())
+          }
+        ]
+      );
+    }
+  }, [error, dispatch]);
 
   const handleDeleteRecord = (record: FuelReceiptResponse) => {
     Alert.alert(
@@ -47,7 +67,7 @@ export default function FuelHistoryScreen() {
   };
 
   const formatCurrency = (amount?: number) => {
-    return amount ? `$${amount.toFixed(2)}` : 'N/A';
+    return amount ? `₹${amount.toFixed(2)}` : 'N/A';
   };
 
   const renderFuelRecord = ({ item }: { item: FuelReceiptResponse }) => (
@@ -82,15 +102,15 @@ export default function FuelHistoryScreen() {
           <Text style={styles.detailValue}>{formatCurrency(item.amount)}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Gallons:</Text>
+          <Text style={styles.detailLabel}>Liters:</Text>
           <Text style={styles.detailValue}>
-            {item.gallons ? `${item.gallons.toFixed(3)}` : 'N/A'}
+            {item.liters ? `${item.liters.toFixed(3)}` : 'N/A'}
           </Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Price/Gallon:</Text>
+          <Text style={styles.detailLabel}>Price/Liter:</Text>
           <Text style={styles.detailValue}>
-            {item.pricePerGallon ? formatCurrency(item.pricePerGallon) : 'N/A'}
+            {item.pricePerLiter ? formatCurrency(item.pricePerLiter) : 'N/A'}
           </Text>
         </View>
         {item.location && (

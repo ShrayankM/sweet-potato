@@ -16,9 +16,10 @@ public class FuelReceiptResponse {
     
     private Long id;
     private String stationName;
+    private String stationBrand;
     private BigDecimal amount;
-    private BigDecimal gallons;
-    private BigDecimal pricePerGallon;
+    private BigDecimal liters;
+    private BigDecimal pricePerLiter;
     private String receiptImageUrl;
     private String location;
     private LocalDateTime purchaseDate;
