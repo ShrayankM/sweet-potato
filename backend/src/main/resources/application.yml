@@ -22,26 +22,18 @@ spring:
         jwt:
           issuer-uri: ${JWT_ISSUER_URI:http://localhost:8086}
 
-# JWT Configuration
+# DynamoDB Configuration
 app:
-  jwt:
-    secret: ${JWT_SECRET:mySecretKey1234567890123456789012345678901234567890}
-    expiration: 86400000 # 24 hours in milliseconds
-    refresh-expiration: 604800000 # 7 days in milliseconds
+  config:
+    dynamodb:
+      table-name: ${CONFIG_TABLE_NAME:sweet-potato-config}
+    environment: ${APP_ENVIRONMENT:dev}
+    encryption:
+      key: ${CONFIG_ENCRYPTION_KEY:defaultEncryptionKey1234567890123456}
 
-# AWS S3 Configuration
+# AWS Region Configuration (for DynamoDB client)
 aws:
-  s3:
-    bucket-name: ${AWS_S3_BUCKET:sweet-potato-receipts}
-    region: ${AWS_REGION:us-east-1}
-    access-key: ${AWS_ACCESS_KEY:your-access-key}
-    secret-key: ${AWS_SECRET_KEY:your-secret-key}
-
-# Mistral AI Configuration
-mistral:
-  api:
-    url: ${MISTRAL_API_URL:https://api.mistral.ai/v1}
-    key: ${MISTRAL_API_KEY:your-mistral-api-key}
+  region: ${AWS_REGION:ap-south-1}
 
 # Server Configuration
 server:
@@ -77,6 +69,7 @@ spring:
 
 server:
   port: 8081
+  address: 0.0.0.0  # Listen on all network interfaces for mobile access
 
 # Logging for development
 logging:

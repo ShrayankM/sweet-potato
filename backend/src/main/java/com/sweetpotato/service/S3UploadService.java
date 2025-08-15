@@ -7,8 +7,9 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.sweetpotato.config.DynamicConfigurationProperties;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,38 +20,34 @@ import java.util.UUID;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class S3UploadService {
 
-    @Value("${aws.s3.bucket-name}")
-    private String bucketName;
-
-    @Value("${aws.s3.region}")
-    private String region;
-
-    @Value("${aws.s3.access-key}")
-    private String accessKeyId;
-
-    @Value("${aws.s3.secret-key}")
-    private String secretAccessKey;
-
+    private final DynamicConfigurationProperties configProperties;
     private AmazonS3 s3Client;
 
     @PostConstruct
     public void initializeS3Client() {
-        BasicAWSCredentials awsCredentials = new BasicAWSCredentials(accessKeyId, secretAccessKey);
+        BasicAWSCredentials awsCredentials = new BasicAWSCredentials(
+                configProperties.getAwsAccessKey(), 
+                configProperties.getAwsSecretKey()
+        );
         
         this.s3Client = AmazonS3ClientBuilder.standard()
-                .withRegion(Regions.fromName(region))
+                .withRegion(Regions.fromName(configProperties.getAwsRegion()))
                 .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
                 .build();
     }
 
     @Bean
     public AmazonS3 amazonS3Client() {
-        BasicAWSCredentials awsCredentials = new BasicAWSCredentials(accessKeyId, secretAccessKey);
+        BasicAWSCredentials awsCredentials = new BasicAWSCredentials(
+                configProperties.getAwsAccessKey(), 
+                configProperties.getAwsSecretKey()
+        );
         
         return AmazonS3ClientBuilder.standard()
-                .withRegion(Regions.fromName(region))
+                .withRegion(Regions.fromName(configProperties.getAwsRegion()))
                 .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
                 .build();
     }
@@ -67,6 +64,7 @@ public class S3UploadService {
         metadata.setContentLength(file.getSize());
 
         try {
+            String bucketName = configProperties.getAwsBucketName();
             PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, fileName, file.getInputStream(), metadata);
             s3Client.putObject(putObjectRequest);
             
@@ -87,7 +85,7 @@ public class S3UploadService {
     public void deleteFile(String fileUrl) {
         try {
             String fileName = extractFileNameFromUrl(fileUrl);
-            s3Client.deleteObject(bucketName, fileName);
+            s3Client.deleteObject(configProperties.getAwsBucketName(), fileName);
             log.info("File deleted successfully from S3: {}", fileName);
         } catch (Exception e) {
             log.error("Error deleting file from S3", e);

@@ -1,13 +1,14 @@
 package com.sweetpotato.service;
 
+import com.sweetpotato.config.DynamicConfigurationProperties;
 import com.sweetpotato.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -19,16 +20,10 @@ import java.util.function.Function;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class JwtService {
 
-    @Value("${app.jwt.secret}")
-    private String jwtSecret;
-
-    @Value("${app.jwt.expiration}")
-    private long jwtExpiration;
-
-    @Value("${app.jwt.refresh-expiration}")
-    private long refreshExpiration;
+    private final DynamicConfigurationProperties configProperties;
 
     // This method extracts the subject from JWT token, which is now the user's email
     public String extractUsername(String token) {
@@ -45,11 +40,11 @@ public class JwtService {
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-        return buildToken(extraClaims, userDetails, jwtExpiration);
+        return buildToken(extraClaims, userDetails, configProperties.getJwtExpiration());
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, refreshExpiration);
+        return buildToken(new HashMap<>(), userDetails, configProperties.getJwtRefreshExpiration());
     }
 
     private String buildToken(
@@ -131,15 +126,15 @@ public class JwtService {
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        byte[] keyBytes = Decoders.BASE64.decode(configProperties.getJwtSecret());
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public long getJwtExpiration() {
-        return jwtExpiration;
+        return configProperties.getJwtExpiration();
     }
 
     public long getRefreshExpiration() {
-        return refreshExpiration;
+        return configProperties.getJwtRefreshExpiration();
     }
 }

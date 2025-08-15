@@ -4,12 +4,12 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sweetpotato.config.DynamicConfigurationProperties;
 import com.sweetpotato.dto.fuel.ExtractedFuelData;
 import com.sweetpotato.dto.fuel.MistralOcrRequest;
 import com.sweetpotato.dto.fuel.MistralOcrResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -32,15 +32,7 @@ public class MistralOcrService {
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
     private final AmazonS3 s3Client;
-
-    @Value("${mistral.api.url}")
-    private String mistralApiUrl;
-
-    @Value("${mistral.api.key}")
-    private String mistralApiKey;
-
-    @Value("${aws.s3.bucket-name}")
-    private String bucketName;
+    private final DynamicConfigurationProperties configProperties;
 
     private static final String FUEL_RECEIPT_PROMPT = """
         Please analyze this fuel receipt image and extract the following information in JSON format:
@@ -84,8 +76,8 @@ public class MistralOcrService {
                     
                     return webClientBuilder.build()
                             .post()
-                            .uri(mistralApiUrl + "/chat/completions")
-                            .header("Authorization", "Bearer " + mistralApiKey)
+                            .uri(configProperties.getMistralApiUrl() + "/chat/completions")
+                            .header("Authorization", "Bearer " + configProperties.getMistralApiKey())
                             .header("Content-Type", "application/json")
                             .bodyValue(request)
                             .retrieve()
@@ -112,7 +104,7 @@ public class MistralOcrService {
                 log.info("Downloading image from S3 with key: {}", s3Key);
                 
                 // Download image from S3
-                S3Object s3Object = s3Client.getObject(bucketName, s3Key);
+                S3Object s3Object = s3Client.getObject(configProperties.getAwsBucketName(), s3Key);
                 byte[] imageBytes = s3Object.getObjectContent().readAllBytes();
                 s3Object.close();
                 
@@ -138,6 +130,7 @@ public class MistralOcrService {
         // Key should be: receipts/filename.jpg
         
         try {
+            String bucketName = configProperties.getAwsBucketName();
             log.debug("Extracting S3 key from URL: {}", s3Url);
             log.debug("Expected bucket name: {}", bucketName);
             
