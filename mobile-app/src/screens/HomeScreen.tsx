@@ -32,7 +32,7 @@ export default function HomeScreen() {
     refetch,
     isFetching,
     status 
-  } = useGetFuelRecordsQuery({ page: 0, size: 10 });
+  } = useGetFuelRecordsQuery({ page: 0, size: 100 });
 
   // Debug logging and error handling
   React.useEffect(() => {
@@ -234,7 +234,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.recordsSection}>
-        <Text style={styles.sectionTitle}>Recent Records</Text>
+        <Text style={styles.sectionTitle}>Fuel Records</Text>
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007AFF" />
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
   },
   uploadReceiptButton: {
-    shadowColor: '#60A5FA',
+    shadowColor: '#60A5FB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

@@ -14,11 +14,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import { useUploadReceiptMutation } from '../store/api/fuelRecordApi';
+import ChimpSuccessAnimation from '../components/ChimpSuccessAnimation';
 
 export default function FuelRecordScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const navigation = useNavigation();
   
   const [uploadReceipt, { isLoading: isUploading }] = useUploadReceiptMutation();
@@ -117,27 +119,9 @@ export default function FuelRecordScreen() {
       
       console.log('Upload successful! Result:', result);
       setUploadResult(result);
-
-      // Show success message with extracted data
-      if (result.ocrProcessed) {
-        const extractedInfo = [];
-        if (result.stationName) extractedInfo.push(`Station: ${result.stationName}`);
-        if (result.amount) extractedInfo.push(`Amount: $${result.amount}`);
-        if (result.liters) extractedInfo.push(`Liters: ${result.liters}`);
-        if (result.location) extractedInfo.push(`Location: ${result.location}`);
-        
-        Alert.alert(
-          '✅ Receipt Processed Successfully!',
-          extractedInfo.length > 0 ? `Extracted info:\n${extractedInfo.join('\n')}` : 'Receipt uploaded and processed.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
-      } else {
-        Alert.alert(
-          '✅ Receipt Uploaded',
-          'Your receipt was uploaded successfully but OCR processing is still in progress.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
-      }
+      
+      // Show chimp success animation
+      setShowSuccessAnimation(true);
 
     } catch (error: any) {
       console.error('Upload failed - Full error object:', error);
@@ -236,15 +220,7 @@ export default function FuelRecordScreen() {
           </View>
         )}
 
-        {uploadResult && (
-          <View style={styles.resultContainer}>
-            <Text style={styles.resultTitle}>✅ Upload Successful!</Text>
-            {uploadResult.stationName && <Text style={styles.resultText}>Station: {uploadResult.stationName}</Text>}
-            {uploadResult.amount && <Text style={styles.resultText}>Amount: ${uploadResult.amount}</Text>}
-            {uploadResult.liters && <Text style={styles.resultText}>Liters: {uploadResult.liters}</Text>}
-            {uploadResult.location && <Text style={styles.resultText}>Location: {uploadResult.location}</Text>}
-          </View>
-        )}
+
         
         {selectedImage && !uploadResult && (
           <TouchableOpacity 
@@ -260,22 +236,33 @@ export default function FuelRecordScreen() {
           </TouchableOpacity>
         )}
         
-        {uploadResult ? (
-          <TouchableOpacity 
-            style={styles.newReceiptButton} 
-            onPress={resetForm}
-          >
-            <Text style={styles.newReceiptButtonText}>📷 Upload Another Receipt</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={styles.cancelButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
+        {!showSuccessAnimation && (
+          uploadResult ? (
+            <TouchableOpacity 
+              style={styles.newReceiptButton} 
+              onPress={resetForm}
+            >
+              <Text style={styles.newReceiptButtonText}>📷 Upload Another Receipt</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          )
         )}
       </View>
+      
+      <ChimpSuccessAnimation 
+        visible={showSuccessAnimation}
+        onAnimationComplete={() => {
+          setShowSuccessAnimation(false);
+          // Navigate to Home screen instead of going back
+          navigation.navigate('Home' as never);
+        }}
+      />
     </View>
   );
 }
@@ -376,26 +363,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
-  resultContainer: {
-    backgroundColor: '#e8f5e8',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  resultTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2e7d32',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  resultText: {
-    fontSize: 14,
-    color: '#2e7d32',
-    marginBottom: 4,
-  },
+
   uploadButton: {
     backgroundColor: '#007AFF',
     height: 56,
