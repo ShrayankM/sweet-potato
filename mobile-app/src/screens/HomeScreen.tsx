@@ -118,35 +118,43 @@ export default function HomeScreen() {
 
     return (
       <View style={styles.recordCard}>
-        <View style={styles.recordHeader}>
-          <Text style={styles.stationName}>
-            {item.stationBrand || 'Gas Station'}
-          </Text>
-          <Text style={styles.amount}>
-            ₹{(item.amount || 0).toFixed(2)}
-          </Text>
+        {/* Station Brand Image Placeholder */}
+        <View style={styles.stationImagePlaceholder}>
+          <Ionicons name="business-outline" size={24} color="#9CA3AF" />
         </View>
-        <View style={styles.recordDetails}>
-          <Text style={styles.date}>
-            {item.purchaseDate ? formatDate(item.purchaseDate) : formatDate(item.createdAt)}
-          </Text>
-          <Text style={styles.liters}>
-            {(item.liters || 0).toFixed(1)} liters
-          </Text>
-        </View>
-        {item.fuelType && (
-          <View style={styles.fuelTypeContainer}>
-            <Text style={[
-              styles.fuelType,
-              { 
-                backgroundColor: fuelTypeColors.backgroundColor, 
-                color: fuelTypeColors.textColor 
-              }
-            ]}>
-              {item.fuelType}
+        
+        {/* Record Content */}
+        <View style={styles.recordContent}>
+          <View style={styles.recordHeader}>
+            <Text style={styles.stationName}>
+              {item.stationBrand || 'Gas Station'}
+            </Text>
+            <Text style={styles.amount}>
+              ₹{(item.amount || 0).toFixed(2)}
             </Text>
           </View>
-        )}
+          <View style={styles.recordDetails}>
+            <Text style={styles.date}>
+              {item.purchaseDate ? formatDate(item.purchaseDate) : formatDate(item.createdAt)}
+            </Text>
+            <Text style={styles.liters}>
+              {(item.liters || 0).toFixed(1)} liters
+            </Text>
+          </View>
+          {item.fuelType && (
+            <View style={styles.fuelTypeContainer}>
+              <Text style={[
+                styles.fuelType,
+                { 
+                  backgroundColor: fuelTypeColors.backgroundColor, 
+                  color: fuelTypeColors.textColor 
+                }
+              ]}>
+                {item.fuelType}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     );
   };
@@ -354,7 +362,7 @@ const styles = StyleSheet.create({
   recordsSection: {
     flex: 1,
     padding: 20,
-    paddingTop: 30,
+    paddingTop: 15,
   },
   sectionTitle: {
     fontSize: 22,
@@ -373,8 +381,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
-    borderLeftWidth: 3,
-    borderLeftColor: '#60A5FA',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  stationImagePlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  recordContent: {
+    flex: 1,
   },
   recordHeader: {
     flexDirection: 'row',
@@ -390,7 +410,7 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#60A5FA',
+    color: '#000000',
   },
   recordDetails: {
     flexDirection: 'row',
@@ -420,7 +440,8 @@ const styles = StyleSheet.create({
   },
   uploadSection: {
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingTop: 20,
+    paddingBottom: 5,
   },
   uploadReceiptButton: {
     shadowColor: '#60A5FA',
