@@ -140,7 +140,7 @@ export default function HomeScreen() {
             />
           ) : (
             <View style={styles.stationImagePlaceholder}>
-              <Ionicons name="business-outline" size={24} color="#9CA3AF" />
+              <Ionicons name="business-outline" size={20} color="#9CA3AF" />
             </View>
           )}
         </View>
@@ -149,29 +149,26 @@ export default function HomeScreen() {
         <View style={styles.recordContent}>
           <View style={styles.recordHeader}>
             <View style={styles.stationInfo}>
-              <Text style={styles.stationName}>
+              {/* <Text style={styles.stationName}>
                 {item.stationName || item.stationBrand || 'Gas Station'}
-              </Text>
-              {item.stationBrand && item.stationName !== item.stationBrand && (
-                <Text style={styles.stationBrand}>
-                  {item.stationBrand}
+              </Text> */}
+              <View style={styles.brandDateContainer}>
+                {(item.stationBrand || item.stationName) && (
+                  <Text style={styles.stationBrand}>
+                    {item.stationBrand || item.stationName || 'Gas Station'}
+                  </Text>
+                )}
+                <Text style={styles.date}>
+                  {item.purchaseDate ? formatDate(item.purchaseDate) : formatDate(item.createdAt)}
                 </Text>
-              )}
+              </View>
             </View>
             <Text style={styles.amount}>
               ₹{(item.amount || 0).toFixed(2)}
             </Text>
           </View>
           <View style={styles.recordDetails}>
-            <Text style={styles.date}>
-              {item.purchaseDate ? formatDate(item.purchaseDate) : formatDate(item.createdAt)}
-            </Text>
-            <Text style={styles.liters}>
-              {(item.liters || 0).toFixed(1)} liters
-            </Text>
-          </View>
-          {item.fuelType && (
-            <View style={styles.fuelTypeContainer}>
+            {item.fuelType && (
               <Text style={[
                 styles.fuelType,
                 { 
@@ -181,8 +178,11 @@ export default function HomeScreen() {
               ]}>
                 {item.fuelType}
               </Text>
-            </View>
-          )}
+            )}
+            <Text style={styles.liters}>
+              {(item.liters || 0).toFixed(1)} liters
+            </Text>
+          </View>
         </View>
       </View>
     );
@@ -402,37 +402,36 @@ const styles = StyleSheet.create({
   },
   recordCard: {
     backgroundColor: 'white',
-    padding: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 6,
     shadowColor: '#6B7280',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   stationImageContainer: {
     width: 48,
-    height: 48,
-    marginRight: 12,
+    marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'center',
   },
   stationImagePlaceholder: {
-    width: 48,
-    height: 48,
+    width: 42,
+    height: 42,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
   },
   stationBrandLogo: {
-    width: 48,
-    height: 48,
+    width: 42,
+    height: 42,
     borderRadius: 8,
-    backgroundColor: '#F8F9FA',
   },
   recordContent: {
     flex: 1,
@@ -441,10 +440,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 6,
+    marginBottom: 2,
   },
   stationInfo: {
     flex: 1,
+  },
+  brandDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   stationName: {
     fontSize: 16,
@@ -453,10 +458,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   stationBrand: {
-    fontSize: 12,
-    color: '#60A5FA',
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontSize: 16,
+    color: '#000000',
+    fontWeight: '700',
+    // textTransform: 'uppercase',
+    textTransform: 'capitalize',
   },
   amount: {
     fontSize: 16,
@@ -466,9 +472,10 @@ const styles = StyleSheet.create({
   recordDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   date: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#7f8c8d',
     fontWeight: '500',
   },
@@ -477,15 +484,11 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     fontWeight: '500',
   },
-  fuelTypeContainer: {
-    marginTop: 4,
-    alignItems: 'flex-start',
-  },
   fuelType: {
-    fontSize: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    fontSize: 11,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
     fontWeight: '500',
     overflow: 'hidden',
   },

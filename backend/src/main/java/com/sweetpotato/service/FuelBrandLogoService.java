@@ -16,34 +16,57 @@ public class FuelBrandLogoService {
     private final DynamicConfigurationProperties configProperties;
 
     // Brand mapping with common variations and keywords
-    private final Map<String, Set<String>> brandPatterns = Map.of(
-        "shell", Set.of("shell", "royal dutch shell"),
-        "bp", Set.of("bp", "british petroleum", "bharat petroleum", "bpcl"),
-        "indian-oil", Set.of("indian oil", "indianoil", "iocl", "indane"),
-        "hpcl", Set.of("hpcl", "hindustan petroleum", "hp"),
-        "reliance", Set.of("reliance", "reliance industries", "jio-bp"),
-        "essar", Set.of("essar", "nayara"),
-        "total", Set.of("total", "totalenergies"),
-        "adani", Set.of("adani", "adani gas"),
-        "gulf", Set.of("gulf", "gulf oil"),
-        "castrol", Set.of("castrol")
-    );
+    private final Map<String, Set<String>> brandPatterns = initializeBrandPatterns();
 
     // Common station name patterns that indicate specific brands
     private final Map<Pattern, String> stationNamePatterns = initializePatternMap();
 
     /**
+     * Initialize the brand patterns map
+     * @return Map of brand keys to their matching patterns
+     */
+    private static Map<String, Set<String>> initializeBrandPatterns() {
+        Map<String, Set<String>> patterns = new HashMap<>();
+        patterns.put("shell", Set.of("shell", "royal dutch shell"));
+        patterns.put("bp", Set.of("british petroleum", "bp petrol", "bp gas", "bp fuel"));
+        patterns.put("bpcl", Set.of("bharat petroleum", "bpcl", "bharatpetroleum"));
+        patterns.put("indian-oil", Set.of("indian oil", "indianoil", "iocl", "indane"));
+        patterns.put("hpcl", Set.of("hpcl", "hindustan petroleum", "hp petrol", "hp petroleum", "hp fuel"));
+        patterns.put("reliance", Set.of("reliance", "reliance industries", "jio-bp"));
+        patterns.put("essar", Set.of("essar", "nayara"));
+        patterns.put("total", Set.of("total", "totalenergies"));
+        patterns.put("adani", Set.of("adani", "adani gas"));
+        patterns.put("gulf", Set.of("gulf", "gulf oil"));
+        patterns.put("castrol", Set.of("castrol"));
+        return patterns;
+    }
+
+    /**
      * Initialize the station name pattern map
+     * Order matters - more specific patterns should come first to avoid false matches
      * @return Map of patterns to brand names
      */
     private static Map<Pattern, String> initializePatternMap() {
-        Map<Pattern, String> patterns = new HashMap<>();
-        patterns.put(Pattern.compile(".*shell.*", Pattern.CASE_INSENSITIVE), "shell");
-        patterns.put(Pattern.compile(".*bp.*", Pattern.CASE_INSENSITIVE), "bp");
-        patterns.put(Pattern.compile(".*indian.*oil.*", Pattern.CASE_INSENSITIVE), "indian-oil");
-        patterns.put(Pattern.compile(".*iocl.*", Pattern.CASE_INSENSITIVE), "indian-oil");
+        Map<Pattern, String> patterns = new LinkedHashMap<>();
+        
+        // Most specific patterns first to avoid cross-matching
         patterns.put(Pattern.compile(".*hpcl.*", Pattern.CASE_INSENSITIVE), "hpcl");
         patterns.put(Pattern.compile(".*hindustan.*petroleum.*", Pattern.CASE_INSENSITIVE), "hpcl");
+        patterns.put(Pattern.compile(".*hp.*petrol.*", Pattern.CASE_INSENSITIVE), "hpcl");
+        patterns.put(Pattern.compile(".*hp.*petroleum.*", Pattern.CASE_INSENSITIVE), "hpcl");
+        patterns.put(Pattern.compile(".*hp.*fuel.*", Pattern.CASE_INSENSITIVE), "hpcl");
+        
+        patterns.put(Pattern.compile(".*bharat.*petroleum.*", Pattern.CASE_INSENSITIVE), "bpcl");
+        patterns.put(Pattern.compile(".*bpcl.*", Pattern.CASE_INSENSITIVE), "bpcl");
+        
+        patterns.put(Pattern.compile(".*british.*petroleum.*", Pattern.CASE_INSENSITIVE), "bp");
+        patterns.put(Pattern.compile(".*bp.*petrol.*", Pattern.CASE_INSENSITIVE), "bp");
+        patterns.put(Pattern.compile(".*bp.*gas.*", Pattern.CASE_INSENSITIVE), "bp");
+        patterns.put(Pattern.compile(".*bp.*fuel.*", Pattern.CASE_INSENSITIVE), "bp");
+        
+        patterns.put(Pattern.compile(".*shell.*", Pattern.CASE_INSENSITIVE), "shell");
+        patterns.put(Pattern.compile(".*indian.*oil.*", Pattern.CASE_INSENSITIVE), "indian-oil");
+        patterns.put(Pattern.compile(".*iocl.*", Pattern.CASE_INSENSITIVE), "indian-oil");
         patterns.put(Pattern.compile(".*reliance.*", Pattern.CASE_INSENSITIVE), "reliance");
         patterns.put(Pattern.compile(".*jio.*bp.*", Pattern.CASE_INSENSITIVE), "reliance");
         patterns.put(Pattern.compile(".*essar.*", Pattern.CASE_INSENSITIVE), "essar");
@@ -52,6 +75,7 @@ public class FuelBrandLogoService {
         patterns.put(Pattern.compile(".*adani.*", Pattern.CASE_INSENSITIVE), "adani");
         patterns.put(Pattern.compile(".*gulf.*", Pattern.CASE_INSENSITIVE), "gulf");
         patterns.put(Pattern.compile(".*castrol.*", Pattern.CASE_INSENSITIVE), "castrol");
+        
         return patterns;
     }
 
