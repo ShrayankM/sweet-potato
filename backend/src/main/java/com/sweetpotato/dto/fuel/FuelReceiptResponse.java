@@ -17,6 +17,7 @@ public class FuelReceiptResponse {
     private Long id;
     private String stationName;
     private String stationBrand;
+    private String fuelType;
     private BigDecimal amount;
     private BigDecimal liters;
     private BigDecimal pricePerLiter;

@@ -70,6 +70,21 @@ export default function FuelHistoryScreen() {
     return amount ? `₹${amount.toFixed(2)}` : 'N/A';
   };
 
+  const getFuelTypeColors = (fuelType: string) => {
+    switch (fuelType?.toLowerCase()) {
+      case 'petrol':
+        return { backgroundColor: '#FFEBEE', textColor: '#D32F2F' }; // Red
+      case 'diesel':
+        return { backgroundColor: '#FFF9C4', textColor: '#F57F17' }; // Yellow
+      case 'cng':
+        return { backgroundColor: '#E8F5E8', textColor: '#388E3C' }; // Green
+      case 'lpg':
+        return { backgroundColor: '#E3F2FD', textColor: '#1976D2' }; // Blue
+      default:
+        return { backgroundColor: '#F5F5F5', textColor: '#757575' }; // Gray for unknown
+    }
+  };
+
   const renderFuelRecord = ({ item }: { item: FuelReceiptResponse }) => (
     <View style={styles.recordCard}>
       <View style={styles.recordHeader}>
@@ -113,6 +128,19 @@ export default function FuelHistoryScreen() {
             {item.pricePerLiter ? formatCurrency(item.pricePerLiter) : 'N/A'}
           </Text>
         </View>
+        {item.fuelType && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Fuel Type:</Text>
+            <View style={styles.fuelTypeContainer}>
+              <Text style={[
+                styles.fuelTypeChip,
+                getFuelTypeColors(item.fuelType)
+              ]}>
+                {item.fuelType}
+              </Text>
+            </View>
+          </View>
+        )}
         {item.location && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Location:</Text>
@@ -309,5 +337,17 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  fuelTypeContainer: {
+    alignItems: 'flex-end',
+    flex: 1,
+  },
+  fuelTypeChip: {
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });

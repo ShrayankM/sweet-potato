@@ -78,6 +78,21 @@ export default function HomeScreen() {
     };
   }, [fuelRecords, fuelRecordsData?.totalElements]);
 
+  const getFuelTypeColors = (fuelType: string) => {
+    switch (fuelType?.toLowerCase()) {
+      case 'petrol':
+        return { backgroundColor: '#FFEBEE', textColor: '#D32F2F' }; // Red
+      case 'diesel':
+        return { backgroundColor: '#FFF9C4', textColor: '#F57F17' }; // Yellow
+      case 'cng':
+        return { backgroundColor: '#E8F5E8', textColor: '#388E3C' }; // Green
+      case 'lpg':
+        return { backgroundColor: '#E3F2FD', textColor: '#1976D2' }; // Blue
+      default:
+        return { backgroundColor: '#F5F5F5', textColor: '#757575' }; // Gray for unknown
+    }
+  };
+
   const renderFuelRecord = ({ item }: { item: any }) => {
     const formatDate = (dateString: string) => {
       try {
@@ -87,6 +102,8 @@ export default function HomeScreen() {
         return dateString;
       }
     };
+
+    const fuelTypeColors = getFuelTypeColors(item.fuelType);
 
     return (
       <View style={styles.recordCard}>
@@ -106,6 +123,19 @@ export default function HomeScreen() {
             {(item.liters || 0).toFixed(1)} liters
           </Text>
         </View>
+        {item.fuelType && (
+          <View style={styles.fuelTypeContainer}>
+            <Text style={[
+              styles.fuelType,
+              { 
+                backgroundColor: fuelTypeColors.backgroundColor, 
+                color: fuelTypeColors.textColor 
+              }
+            ]}>
+              {item.fuelType}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -290,6 +320,18 @@ const styles = StyleSheet.create({
   liters: {
     fontSize: 14,
     color: '#666',
+  },
+  fuelTypeContainer: {
+    marginTop: 8,
+    alignItems: 'flex-start',
+  },
+  fuelType: {
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontWeight: '500',
+    overflow: 'hidden',
   },
   addButton: {
     position: 'absolute',

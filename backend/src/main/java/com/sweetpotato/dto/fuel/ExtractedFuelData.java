@@ -20,7 +20,8 @@ public class ExtractedFuelData {
     private BigDecimal totalAmount;
     private BigDecimal liters;
     private BigDecimal pricePerLiter;
-    private String fuelType; // Regular, Premium, Diesel, etc.
+    private String fuelType; // Petrol, Diesel, CNG, LPG, etc.
+    private String fuelGrade; // Regular, Premium, etc.
     private LocalDateTime purchaseDateTime;
     private String receiptNumber;
     private String paymentMethod;

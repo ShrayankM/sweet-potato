@@ -103,6 +103,7 @@ public class FuelRecordService {
             builder
                 .stationName(extractedData.getStationName())
                 .stationBrand(extractedData.getStationBrand())
+                .fuelType(validateFuelType(extractedData.getFuelType()))
                 .amount(extractedData.getTotalAmount())
                 .liters(extractedData.getLiters())
                 .pricePerLiter(extractedData.getPricePerLiter())
@@ -119,6 +120,33 @@ public class FuelRecordService {
         }
 
         return builder.build();
+    }
+
+    private String validateFuelType(String fuelType) {
+        if (fuelType == null) {
+            return "unknown";
+        }
+        
+        // Normalize the fuel type (case-insensitive comparison)
+        String normalizedFuelType = fuelType.trim().toLowerCase();
+        
+        switch (normalizedFuelType) {
+            case "petrol":
+            case "gasoline":
+            case "gas":
+                return "Petrol";
+            case "diesel":
+                return "Diesel";
+            case "cng":
+            case "compressed natural gas":
+                return "CNG";
+            case "lpg":
+            case "liquified petroleum gas":
+                return "LPG";
+            default:
+                log.info("Unknown fuel type detected: {}. Setting to 'unknown'", fuelType);
+                return "unknown";
+        }
     }
 
     private String buildLocationString(ExtractedFuelData extractedData) {
@@ -160,6 +188,7 @@ public class FuelRecordService {
                 .id(fuelRecord.getId())
                 .stationName(fuelRecord.getStationName())
                 .stationBrand(fuelRecord.getStationBrand())
+                .fuelType(fuelRecord.getFuelType())
                 .amount(fuelRecord.getAmount())
                 .liters(fuelRecord.getLiters())
                 .pricePerLiter(fuelRecord.getPricePerLiter())
