@@ -16,7 +16,7 @@ import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { logout } from '../store/slices/authSlice';
 import { AppStackParamList } from '../navigation/AppNavigator';
 import { Ionicons } from '@expo/vector-icons';
-import { useGetFuelRecordsQuery } from '../store/api/fuelRecordApi';
+import { useGetFuelRecordsQuery, fuelRecordApi } from '../store/api/fuelRecordApi';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<AppStackParamList, 'Home'>;
 
@@ -24,6 +24,10 @@ export default function HomeScreen() {
   const { user } = useAppSelector(state => state.auth);
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const dispatch = useAppDispatch();
+  
+  // Track user transitions to prevent showing stale data
+  const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
+  const [isUserTransitioning, setIsUserTransitioning] = React.useState(false);
   
   // Fetch fuel records using RTK Query
   const { 
@@ -35,6 +39,30 @@ export default function HomeScreen() {
     status 
   } = useGetFuelRecordsQuery({ page: 0, size: 10000 }); // No practical limit - fetch all records
 
+  // Handle user changes to prevent showing previous user's data
+  React.useEffect(() => {
+    const userId = user?.id?.toString() || null;
+    
+    if (userId && userId !== currentUserId) {
+      console.log('HomeScreen - User changed from', currentUserId, 'to', userId, '- starting transition');
+      
+      // Immediately start transition to prevent stale data flash
+      setIsUserTransitioning(true);
+      
+      // Always invalidate cache and refetch for any user change (including first login)
+      dispatch(fuelRecordApi.util.invalidateTags(['FuelRecord']));
+      refetch().then(() => {
+        console.log('HomeScreen - Data refetch complete for user:', userId);
+        setCurrentUserId(userId);
+        setIsUserTransitioning(false);
+      }).catch((error) => {
+        console.error('HomeScreen - Refetch failed:', error);
+        setCurrentUserId(userId);
+        setIsUserTransitioning(false);
+      });
+    }
+  }, [user?.id, currentUserId, refetch, dispatch]);
+
   // Debug logging and error handling
   React.useEffect(() => {
     console.log('HomeScreen - Query status:', { 
@@ -42,7 +70,8 @@ export default function HomeScreen() {
       isLoading, 
       isFetching, 
       hasData: !!fuelRecordsData, 
-      hasError: !!error 
+      hasError: !!error,
+      userId: user?.id
     });
     
     if (error) {
@@ -63,12 +92,17 @@ export default function HomeScreen() {
         );
       }
     }
-  }, [status, isLoading, isFetching, fuelRecordsData, error, dispatch]);
+  }, [status, isLoading, isFetching, fuelRecordsData, error, dispatch, user?.id]);
 
-  const fuelRecords = fuelRecordsData?.content || [];
+  // Only use data if user is not transitioning to prevent stale data flash
+  const fuelRecords = (!isUserTransitioning && fuelRecordsData?.content) || [];
   
-  // Calculate stats from real data
+  // Calculate stats from real data (empty during user transition)
   const stats = React.useMemo(() => {
+    if (isUserTransitioning) {
+      return { records: 0, totalSpent: 0, totalLiters: 0 };
+    }
+    
     const totalRecords = fuelRecordsData?.totalElements || 0;
     const totalAmount = fuelRecords.reduce((sum, record) => sum + (record.amount || 0), 0);
     const totalLiters = fuelRecords.reduce((sum, record) => sum + (record.liters || 0), 0);
@@ -78,7 +112,7 @@ export default function HomeScreen() {
       totalSpent: totalAmount,
       totalLiters: totalLiters,
     };
-  }, [fuelRecords, fuelRecordsData?.totalElements]);
+  }, [fuelRecords, fuelRecordsData?.totalElements, isUserTransitioning]);
 
   // Helper function to format user name
   const formatUserName = (name: string | undefined) => {
@@ -268,10 +302,12 @@ export default function HomeScreen() {
 
       <View style={styles.recordsSection}>
         <Text style={styles.sectionTitle}>Fuel Records</Text>
-        {isLoading ? (
+        {isLoading || isUserTransitioning ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Loading your fuel records...</Text>
+            <Text style={styles.loadingText}>
+              {isUserTransitioning ? 'Switching user data...' : 'Loading your fuel records...'}
+            </Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
@@ -289,12 +325,6 @@ export default function HomeScreen() {
             <Ionicons name="receipt-outline" size={48} color="#8E8E93" />
             <Text style={styles.emptyText}>No fuel records yet</Text>
             <Text style={styles.emptySubText}>Start by uploading your first receipt</Text>
-            <TouchableOpacity 
-              style={styles.emptyUploadButton}
-              onPress={() => navigation.navigate('FuelRecord')}
-            >
-              <Text style={styles.emptyUploadButtonText}>📸 Upload Receipt</Text>
-            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
