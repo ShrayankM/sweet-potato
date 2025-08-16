@@ -127,7 +127,11 @@ export default function HomeScreen() {
     });
 
     return (
-      <View style={styles.recordCard}>
+      <TouchableOpacity 
+        style={styles.recordCard}
+        onPress={() => navigation.navigate('FuelRecordDetail', { recordId: item.id })}
+        activeOpacity={0.7}
+      >
         {/* Station Brand Logo */}
         <View style={styles.stationImageContainer}>
           {item.brandLogoUrl ? (
@@ -184,7 +188,7 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

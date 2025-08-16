@@ -3,11 +3,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import FuelRecordScreen from '../screens/FuelRecordScreen';
+import FuelRecordDetailScreen from '../screens/FuelRecordDetailScreen';
 
 export type AppStackParamList = {
   Home: undefined;
   Profile: undefined;
   FuelRecord: undefined;
+  FuelRecordDetail: { recordId: number };
 };
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
@@ -28,6 +30,11 @@ export default function AppNavigator() {
         name="FuelRecord" 
         component={FuelRecordScreen} 
         options={{ headerShown: true, title: 'Add Fuel Record' }}
+      />
+      <Stack.Screen 
+        name="FuelRecordDetail" 
+        component={FuelRecordDetailScreen} 
+        options={{ headerShown: true, title: 'Fuel Record Details' }}
       />
     </Stack.Navigator>
   );
