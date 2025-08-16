@@ -38,6 +38,9 @@ public class AppConfiguration {
         private String region;
         private String bucketName;
         private String fuelLogosBucketName;
+        private String sesFromEmail;
+        private String sesReplyToEmail;
+        private String appName;
     }
     
     @Data

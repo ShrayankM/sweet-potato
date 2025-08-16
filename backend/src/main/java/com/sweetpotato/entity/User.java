@@ -52,6 +52,19 @@ public class User implements UserDetails {
     @Builder.Default
     private Boolean isActive = true;
 
+    @Column(name = "password_reset_token")
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_token_expiry")
+    private LocalDateTime passwordResetTokenExpiry;
+
+    @Column(name = "password_reset_attempts")
+    @Builder.Default
+    private Integer passwordResetAttempts = 0;
+
+    @Column(name = "last_password_reset_request")
+    private LocalDateTime lastPasswordResetRequest;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FuelRecord> fuelRecords;
 

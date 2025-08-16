@@ -127,7 +127,7 @@ public class DynamoDbConfigService {
         String description = item.containsKey("description") ? 
                 item.get("description").getS() : null;
         Long lastUpdated = item.containsKey("lastUpdated") ? 
-                Long.valueOf(item.get("lastUpdated").getN()) : null;
+                System.currentTimeMillis() : null; // We'll use current timestamp since it's stored as ISO string
         
         // Decrypt value if encrypted
         if (encrypted) {
@@ -165,6 +165,9 @@ public class DynamoDbConfigService {
                 .region(getConfigValue(configs, "aws.region", "ap-south-1"))
                 .bucketName(getConfigValue(configs, "aws.s3.bucket.name", "sweet-potato-receipts"))
                 .fuelLogosBucketName(getConfigValue(configs, "aws.s3.fuel.logos.bucket.name", "fuel-company-logos"))
+                .sesFromEmail(getConfigValue(configs, "aws.ses.from.email"))
+                .sesReplyToEmail(getConfigValue(configs, "aws.ses.reply.to.email"))
+                .appName(getConfigValue(configs, "aws.app.name", "Sweet Potato"))
                 .build();
     }
     

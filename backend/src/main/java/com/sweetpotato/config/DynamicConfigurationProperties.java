@@ -97,6 +97,35 @@ public class DynamicConfigurationProperties {
     }
     
     /**
+     * Gets SES from email address
+     */
+    public String getSesFromEmail() {
+        AppConfiguration config = configurationLoaderService.getConfiguration();
+        String fromEmail = config != null && config.getAws() != null ? config.getAws().getSesFromEmail() : null;
+        if (fromEmail == null) {
+            log.error("SES from email not found in configuration!");
+            throw new IllegalStateException("SES from email is required but not configured");
+        }
+        return fromEmail;
+    }
+    
+    /**
+     * Gets SES reply-to email address
+     */
+    public String getSesReplyToEmail() {
+        AppConfiguration config = configurationLoaderService.getConfiguration();
+        return config != null && config.getAws() != null ? config.getAws().getSesReplyToEmail() : getSesFromEmail();
+    }
+    
+    /**
+     * Gets application name
+     */
+    public String getAppName() {
+        AppConfiguration config = configurationLoaderService.getConfiguration();
+        return config != null && config.getAws() != null ? config.getAws().getAppName() : "Sweet Potato";
+    }
+    
+    /**
      * Gets Mistral API URL
      */
     public String getMistralApiUrl() {

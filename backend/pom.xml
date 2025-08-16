@@ -88,6 +88,13 @@
             <version>1.12.635</version>
         </dependency>
         
+        <!-- AWS SDK for SES -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-ses</artifactId>
+            <version>1.12.635</version>
+        </dependency>
+        
         <!-- HTTP Client for Mistral AI -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
