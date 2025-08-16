@@ -33,7 +33,7 @@ export default function HomeScreen() {
     refetch,
     isFetching,
     status 
-  } = useGetFuelRecordsQuery({ page: 0, size: 100 });
+  } = useGetFuelRecordsQuery({ page: 0, size: 10000 }); // No practical limit - fetch all records
 
   // Debug logging and error handling
   React.useEffect(() => {

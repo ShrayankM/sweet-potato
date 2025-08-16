@@ -153,7 +153,7 @@ public class FuelRecordController {
     @GetMapping
     public ResponseEntity<Page<FuelReceiptResponse>> getUserFuelRecords(
             @RequestParam(defaultValue = "0") @Min(0) Integer page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) Integer size) {
+            @RequestParam(defaultValue = "20") @Min(1) @Max(10000) Integer size) {
 
         User currentUser = getCurrentUser();
         if (currentUser == null) {
