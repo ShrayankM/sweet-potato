@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -73,6 +74,10 @@ export default function RegisterScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.form}>
+          <View style={styles.appHeader}>
+            <Image source={require('../../assets/fuel.png')} style={styles.appIcon} />
+            <Text style={styles.appName}>Sweet Potato</Text>
+          </View>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join us and start tracking your fuel expenses</Text>
           
@@ -147,6 +152,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 8,
+  },
+  appHeader: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  appIcon: {
+    width: 80,
+    height: 80,
+    marginBottom: 15,
+    resizeMode: 'contain',
+  },
+  appName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
   },
   title: {
     fontSize: 32,
